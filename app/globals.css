@@ -1416,3 +1416,220 @@ section:not(:last-child)::after {
     animation: none;
   }
 }
+
+/* HERO DYNAMIC ROUNDS START */
+
+/*
+  Extra animated rings for the Hero portrait.
+  These effects are decorative and do not affect layout.
+*/
+
+.hero-card-shell {
+  overflow: visible;
+  animation:
+    heroShellBreathing 6s ease-in-out infinite;
+}
+
+.hero-card-shell::after {
+  content: "";
+  position: absolute;
+  z-index: -2;
+  inset: -34px;
+  border: 1px solid rgba(125, 167, 255, 0.16);
+  border-radius: 999px;
+  pointer-events: none;
+  background:
+    conic-gradient(
+      from 0deg,
+      transparent 0deg,
+      rgba(34, 211, 238, 0.16) 45deg,
+      transparent 92deg,
+      rgba(139, 92, 246, 0.2) 155deg,
+      transparent 220deg,
+      rgba(240, 111, 174, 0.16) 290deg,
+      transparent 360deg
+    );
+  box-shadow:
+    0 0 35px rgba(34, 211, 238, 0.08),
+    inset 0 0 30px rgba(139, 92, 246, 0.05);
+  animation:
+    heroOuterHaloRotate 24s linear infinite;
+}
+
+.hero-rotating-ring::before {
+  content: "";
+  position: absolute;
+  inset: -18px;
+  border: 1px dashed rgba(125, 167, 255, 0.17);
+  border-radius: 999px;
+  pointer-events: none;
+  animation:
+    heroDashedOrbitRotate 18s linear infinite reverse;
+}
+
+.hero-rotating-ring::after {
+  content: "";
+  position: absolute;
+  inset: -42px;
+  border-radius: 999px;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      circle at 50% 0%,
+      rgba(34, 211, 238, 0.9) 0 3px,
+      transparent 4px
+    ),
+    radial-gradient(
+      circle at 100% 50%,
+      rgba(139, 92, 246, 0.9) 0 3px,
+      transparent 4px
+    ),
+    radial-gradient(
+      circle at 50% 100%,
+      rgba(240, 111, 174, 0.85) 0 3px,
+      transparent 4px
+    ),
+    radial-gradient(
+      circle at 0% 50%,
+      rgba(96, 165, 250, 0.9) 0 3px,
+      transparent 4px
+    );
+  filter:
+    drop-shadow(0 0 7px rgba(34, 211, 238, 0.8));
+  animation:
+    heroOrbitLightsRotate 14s linear infinite;
+}
+
+.hero-card-glow {
+  animation:
+    heroDynamicGlowPulse 5.5s ease-in-out infinite;
+}
+
+/* Soft rotating light surrounding the complete portrait. */
+
+.hero-card-shell > div:nth-child(2)::after {
+  content: "";
+  position: absolute;
+  inset: -14px;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    conic-gradient(
+      from 180deg,
+      transparent,
+      rgba(34, 211, 238, 0.12),
+      transparent 28%,
+      rgba(139, 92, 246, 0.16),
+      transparent 62%,
+      rgba(240, 111, 174, 0.12),
+      transparent
+    );
+  filter: blur(13px);
+  animation:
+    heroSoftLightRotate 20s linear infinite reverse;
+}
+
+/* Keyframes. */
+
+@keyframes heroOuterHaloRotate {
+  from {
+    transform: rotate(0deg) scale(1);
+  }
+
+  50% {
+    transform: rotate(180deg) scale(1.025);
+  }
+
+  to {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+@keyframes heroDashedOrbitRotate {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes heroOrbitLightsRotate {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes heroSoftLightRotate {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes heroShellBreathing {
+  0%,
+  100% {
+    filter:
+      drop-shadow(0 0 12px rgba(34, 211, 238, 0.06))
+      drop-shadow(0 0 24px rgba(139, 92, 246, 0.07));
+  }
+
+  50% {
+    filter:
+      drop-shadow(0 0 22px rgba(34, 211, 238, 0.13))
+      drop-shadow(0 0 40px rgba(139, 92, 246, 0.12));
+  }
+}
+
+@keyframes heroDynamicGlowPulse {
+  0%,
+  100% {
+    opacity: 0.52;
+    transform: scale(0.96);
+  }
+
+  50% {
+    opacity: 0.95;
+    transform: scale(1.045);
+  }
+}
+
+/* Reduce effects slightly on mobile for better performance. */
+
+@media (max-width: 640px) {
+  .hero-card-shell::after {
+    inset: -22px;
+  }
+
+  .hero-rotating-ring::before {
+    inset: -12px;
+  }
+
+  .hero-rotating-ring::after {
+    inset: -28px;
+  }
+}
+
+/* Respect accessibility preferences. */
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-card-shell,
+  .hero-card-shell::after,
+  .hero-card-glow,
+  .hero-rotating-ring::before,
+  .hero-rotating-ring::after,
+  .hero-card-shell > div:nth-child(2)::after {
+    animation: none !important;
+  }
+}
+
+/* HERO DYNAMIC ROUNDS END */
