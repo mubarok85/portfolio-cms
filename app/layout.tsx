@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Manrope, Playfair_Display } from "next/font/google";
 import Background from "./components/Background";
-import CustomCursor from "../components/CustomCursor";
 import SmoothScroll from "../components/SmoothScroll";
 import "./globals.css";
 
@@ -27,9 +26,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="overflow-x-hidden">
       <body
-        className={`${manrope.variable} ${playfair.variable}`}
+        className={`${manrope.variable} ${playfair.variable} overflow-x-hidden`}
         style={{
           position: "relative",
           minHeight: "100vh",
@@ -37,7 +36,6 @@ export default function RootLayout({
         }}
       >
         <Background />
-        <CustomCursor />
 
         <SmoothScroll>
           <div
@@ -45,6 +43,8 @@ export default function RootLayout({
               position: "relative",
               zIndex: 10,
               minHeight: "100vh",
+              width: "100%",
+              overflowX: "hidden",
             }}
           >
             {children}

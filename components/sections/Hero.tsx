@@ -54,48 +54,56 @@ export default function Hero() {
 
         const result = await response.json();
 
-        if (
-          response.ok &&
-          result.success &&
-          result.data
-        ) {
+        if (response.ok && result.success && result.data) {
           setHeroData({
             badge_text:
               result.data.badge_text ||
               defaultHeroData.badge_text,
+
             title:
               result.data.title ||
               defaultHeroData.title,
+
             highlighted_title:
               result.data.highlighted_title ||
               defaultHeroData.highlighted_title,
+
             description:
               result.data.description ||
               defaultHeroData.description,
+
             primary_button_text:
               result.data.primary_button_text ||
               defaultHeroData.primary_button_text,
+
             primary_button_url:
               result.data.primary_button_url ||
               defaultHeroData.primary_button_url,
+
             secondary_button_text:
               result.data.secondary_button_text ||
               defaultHeroData.secondary_button_text,
+
             resume_url:
               result.data.resume_url ||
               defaultHeroData.resume_url,
+
             profile_image_url:
               result.data.profile_image_url ||
               defaultHeroData.profile_image_url,
+
             clients_supported:
               Number(result.data.clients_supported) ||
               defaultHeroData.clients_supported,
+
             countries_reached:
               Number(result.data.countries_reached) ||
               defaultHeroData.countries_reached,
+
             years_experience:
               Number(result.data.years_experience) ||
               defaultHeroData.years_experience,
+
             is_available:
               typeof result.data.is_available === "boolean"
                 ? result.data.is_available
@@ -132,36 +140,38 @@ export default function Hero() {
     <Spotlight className="hero-section section-atmosphere">
       <section
         id="home"
-        className="relative overflow-hidden px-6 pb-24 pt-40 text-white md:pb-32 md:pt-44"
+        className="relative w-full overflow-hidden px-5 pb-20 pt-28 text-white sm:px-6 sm:pt-32 md:pb-28 md:pt-40"
       >
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute left-[-140px] top-[40px] h-[480px] w-[480px] rounded-full bg-blue-600/15 blur-[140px]" />
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute left-[-220px] top-[30px] h-[420px] w-[420px] rounded-full bg-blue-600/15 blur-[120px] sm:left-[-140px] sm:h-[480px] sm:w-[480px]" />
 
-          <div className="absolute right-[-120px] top-[60px] h-[500px] w-[500px] rounded-full bg-violet-600/15 blur-[150px]" />
+          <div className="absolute right-[-240px] top-[80px] h-[430px] w-[430px] rounded-full bg-violet-600/15 blur-[130px] sm:right-[-120px] sm:h-[500px] sm:w-[500px]" />
 
-          <div className="pulse-orbit absolute left-[12%] top-[28%] h-2 w-2 rounded-full bg-blue-300 shadow-[0_0_20px_rgba(147,197,253,0.95)]" />
+          <div className="pulse-orbit absolute left-[10%] top-[28%] h-2 w-2 rounded-full bg-blue-300 shadow-[0_0_20px_rgba(147,197,253,0.95)]" />
 
-          <div className="pulse-orbit absolute right-[17%] top-[24%] h-2 w-2 rounded-full bg-violet-300 shadow-[0_0_20px_rgba(196,181,253,0.95)]" />
-
-          <div className="absolute left-1/2 top-[35%] h-[360px] w-[360px] -translate-x-1/2 rounded-full bg-cyan-500/5 blur-[130px]" />
+          <div className="pulse-orbit absolute right-[12%] top-[24%] h-2 w-2 rounded-full bg-violet-300 shadow-[0_0_20px_rgba(196,181,253,0.95)]" />
         </div>
 
-        <div className="relative mx-auto grid min-h-[760px] max-w-7xl items-center gap-16 lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="relative z-10">
+        <div className="relative mx-auto grid w-full max-w-7xl min-w-0 items-center gap-14 lg:min-h-[760px] lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
+          <div className="relative z-10 min-w-0">
             <Reveal>
-              <div className="section-label mb-7">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
+              {heroData.is_available && (
+                <div className="section-label mb-6 max-w-full text-[10px] tracking-[0.12em] sm:mb-7 sm:text-xs">
+                  <span className="relative flex h-2.5 w-2.5 shrink-0">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
 
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.85)]" />
-                </span>
+                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.85)]" />
+                  </span>
 
-                {heroData.badge_text}
-              </div>
+                  <span className="min-w-0 break-words">
+                    {heroData.badge_text}.
+                  </span>
+                </div>
+              )}
             </Reveal>
 
             <Reveal delay={100}>
-              <h1 className="max-w-4xl text-5xl font-extrabold leading-[1.02] tracking-[-0.045em] md:text-7xl xl:text-[84px]">
+              <h1 className="max-w-full break-words text-[42px] font-extrabold leading-[0.98] tracking-[-0.045em] sm:text-5xl md:text-7xl xl:text-[84px]">
                 {heroData.title}{" "}
                 <span className="text-gradient">
                   {heroData.highlighted_title}
@@ -170,43 +180,40 @@ export default function Hero() {
             </Reveal>
 
             <Reveal delay={200}>
-              <p className="mt-7 max-w-2xl text-base leading-8 text-slate-400 md:text-lg">
+              <p className="mt-6 max-w-2xl break-words text-sm leading-7 text-slate-400 sm:mt-7 sm:text-base md:text-lg md:leading-8">
                 {heroData.description}
               </p>
             </Reveal>
 
             <Reveal delay={300}>
-              <div className="mt-9 flex flex-wrap items-center gap-4">
+              <div className="mt-8 grid w-full gap-3 sm:flex sm:flex-wrap sm:items-center sm:gap-4">
                 <MagneticLink
                   href={heroData.primary_button_url}
-                  className="premium-button inline-flex items-center justify-center gap-3 rounded-full px-8 py-4 font-semibold text-white"
+                  className="premium-button inline-flex w-full items-center justify-center gap-3 rounded-full px-6 py-4 text-sm font-semibold text-white sm:w-auto sm:px-8 sm:text-base"
                 >
-                  {heroData.primary_button_text}
+                  {heroData.primary_button_text}.
                   <span aria-hidden="true">→</span>
                 </MagneticLink>
 
                 <MagneticLink
-                  href={
-                    heroData.resume_url ||
-                    "/resume.pdf"
-                  }
+                  href={heroData.resume_url || "/resume.pdf"}
                   download
-                  className="secondary-button inline-flex items-center justify-center gap-3 rounded-full px-8 py-4 font-semibold text-white"
+                  className="secondary-button inline-flex w-full items-center justify-center gap-3 rounded-full px-6 py-4 text-sm font-semibold text-white sm:w-auto sm:px-8 sm:text-base"
                 >
-                  {heroData.secondary_button_text}
+                  {heroData.secondary_button_text}.
                   <span aria-hidden="true">↓</span>
                 </MagneticLink>
               </div>
             </Reveal>
 
-            <div className="mt-12 grid max-w-2xl gap-4 sm:grid-cols-3">
+            <div className="mt-10 grid w-full gap-4 sm:mt-12 sm:grid-cols-3">
               {stats.map((item, index) => (
                 <Reveal
                   key={item.label}
                   delay={400 + index * 100}
                 >
-                  <div className="premium-card animated-card h-full rounded-3xl px-5 py-6 text-center">
-                    <p className="text-4xl font-extrabold text-white">
+                  <div className="premium-card animated-card flex min-h-[150px] w-full flex-col items-center justify-center rounded-3xl px-5 py-6 text-center">
+                    <p className="whitespace-nowrap text-4xl font-extrabold text-white">
                       <CountUp
                         key={`${item.label}-${item.end}`}
                         end={item.end}
@@ -219,7 +226,7 @@ export default function Hero() {
                     </p>
 
                     <p className="mt-3 text-sm leading-6 text-slate-400">
-                      {item.label}
+                      {item.label}.
                     </p>
                   </div>
                 </Reveal>
@@ -243,7 +250,7 @@ export default function Hero() {
           aria-label="Scroll to About section"
           className="absolute bottom-8 left-1/2 hidden -translate-x-1/2 flex-col items-center gap-3 text-xs font-medium uppercase tracking-[0.3em] text-slate-500 transition-colors duration-300 hover:text-white md:flex"
         >
-          <span>Scroll</span>
+          <span>Scroll.</span>
 
           <span className="relative h-10 w-px overflow-hidden bg-white/10">
             <span className="hero-scroll-line absolute left-0 top-0 h-5 w-px bg-gradient-to-b from-blue-400 to-violet-400" />
