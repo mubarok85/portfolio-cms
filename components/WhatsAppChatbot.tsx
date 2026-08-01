@@ -22,16 +22,16 @@ type ChatMessage = {
 
 const WHATSAPP_NUMBER = "8801881527885";
 
-const quickQuestions = [
+const QUICK_QUESTIONS = [
   "I want to hire you.",
   "I need a project quotation.",
   "I want to discuss a website project.",
   "I want to discuss a mobile application.",
 ];
 
-const initialMessages: ChatMessage[] = [
+const INITIAL_MESSAGES: ChatMessage[] = [
   {
-    id: "welcome-message",
+    id: "welcome",
     sender: "assistant",
     text:
       "Hi, I am Mubarok Hossain. I can help you with sales consultation, business development, websites, mobile applications, and project planning.",
@@ -48,14 +48,13 @@ export default function WhatsAppChatbot() {
   const [isOpen, setIsOpen] = useState(false);
 
   const [messages, setMessages] =
-    useState<ChatMessage[]>(initialMessages);
+    useState<ChatMessage[]>(INITIAL_MESSAGES);
 
   const [inputValue, setInputValue] = useState("");
 
   const [isTyping, setIsTyping] = useState(false);
 
-  const [hasSelectedQuestion, setHasSelectedQuestion] =
-    useState(false);
+  const [showQuestions, setShowQuestions] = useState(true);
 
   const messagesRef = useRef<HTMLDivElement>(null);
 
@@ -88,15 +87,30 @@ export default function WhatsAppChatbot() {
       return;
     }
 
-    const originalOverflow =
+    const previousOverflow =
       document.body.style.overflow;
 
-    if (window.innerWidth < 640) {
-      document.body.style.overflow = "hidden";
-    }
+    const handleViewport = () => {
+      if (window.innerWidth < 640) {
+        document.body.style.overflow = "hidden";
+      } else {
+        document.body.style.overflow =
+          previousOverflow;
+      }
+    };
+
+    handleViewport();
+
+    window.addEventListener("resize", handleViewport);
 
     return () => {
-      document.body.style.overflow = originalOverflow;
+      window.removeEventListener(
+        "resize",
+        handleViewport,
+      );
+
+      document.body.style.overflow =
+        previousOverflow;
     };
   }, [isOpen]);
 
@@ -136,7 +150,7 @@ export default function WhatsAppChatbot() {
       ]);
 
       setIsTyping(false);
-    }, 550);
+    }, 500);
   }
 
   function handleQuickQuestion(question: string) {
@@ -146,12 +160,12 @@ export default function WhatsAppChatbot() {
 
     addVisitorMessage(question);
     setInputValue(question);
-    setHasSelectedQuestion(true);
+    setShowQuestions(false);
     addAssistantResponse();
   }
 
   function createWhatsAppUrl(message: string) {
-    const whatsappMessage = [
+    const formattedMessage = [
       "Hello Mubarok Hossain,",
       "",
       "I contacted you from your portfolio website.",
@@ -163,7 +177,7 @@ export default function WhatsAppChatbot() {
 
     return (
       `https://wa.me/${WHATSAPP_NUMBER}` +
-      `?text=${encodeURIComponent(whatsappMessage)}`
+      `?text=${encodeURIComponent(formattedMessage)}`
     );
   }
 
@@ -192,7 +206,7 @@ export default function WhatsAppChatbot() {
       return;
     }
 
-    const latestVisitorMessage = [...messages]
+    const latestMessage = [...messages]
       .reverse()
       .find(
         (item) =>
@@ -200,7 +214,7 @@ export default function WhatsAppChatbot() {
           item.text === message,
       );
 
-    if (!latestVisitorMessage) {
+    if (!latestMessage) {
       addVisitorMessage(message);
     }
 
@@ -223,55 +237,51 @@ export default function WhatsAppChatbot() {
     openWhatsApp(message);
   }
 
-  function closeChatbot() {
-    setIsOpen(false);
-  }
-
   return (
     <>
       <div
-        className={`fixed inset-x-3 bottom-[88px] z-[90] flex max-h-[calc(100dvh-104px)] justify-center transition-all duration-300 sm:inset-x-auto sm:bottom-24 sm:right-6 sm:block sm:w-[390px] lg:w-[410px] ${
+        className={`fixed inset-x-3 bottom-[82px] z-[90] mx-auto w-auto max-w-[390px] transition-all duration-300 sm:inset-x-auto sm:bottom-24 sm:right-5 sm:mx-0 sm:w-[380px] lg:right-6 lg:w-[390px] ${
           isOpen
             ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
-            : "pointer-events-none translate-y-5 scale-[0.97] opacity-0"
+            : "pointer-events-none translate-y-4 scale-[0.97] opacity-0"
         }`}
       >
-        <section className="grid h-full max-h-[calc(100dvh-104px)] w-full grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-[26px] border border-white/10 bg-[#07101b]/98 text-white shadow-[0_30px_100px_rgba(0,0,0,0.62)] backdrop-blur-xl sm:max-h-[680px]">
-          <header className="relative shrink-0 border-b border-white/10 bg-gradient-to-r from-emerald-500/10 via-cyan-500/5 to-violet-500/10 px-4 py-4 sm:px-5 sm:py-5">
+        <section className="grid max-h-[calc(100dvh-98px)] w-full min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-[26px] border border-white/10 bg-[#07101b] text-white shadow-[0_30px_100px_rgba(0,0,0,0.62)] sm:max-h-[680px]">
+          <header className="relative min-w-0 overflow-hidden border-b border-white/10 bg-gradient-to-r from-emerald-500/10 via-cyan-500/5 to-violet-500/10 px-4 py-4 sm:px-5">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(16,185,129,0.14),transparent_36%)]" />
 
-            <div className="relative flex items-center justify-between gap-3">
+            <div className="relative grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
               <div className="flex min-w-0 items-center gap-3">
-                <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-300/20 bg-emerald-400/10 sm:h-14 sm:w-14">
-                  <span className="text-sm font-extrabold text-emerald-200 sm:text-lg">
+                <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-300/20 bg-emerald-400/10">
+                  <span className="text-sm font-extrabold text-emerald-200">
                     MH.
                   </span>
 
                   <span className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-[#07101b] bg-emerald-400" />
                 </div>
 
-                <div className="min-w-0">
-                  <p className="truncate text-base font-bold sm:text-lg">
+                <div className="min-w-0 overflow-hidden">
+                  <p className="truncate text-base font-bold">
                     Mubarok Hossain.
                   </p>
 
-                  <p className="mt-1 truncate text-[9px] uppercase tracking-[0.11em] text-slate-400 sm:text-[10px]">
+                  <p className="mt-1 truncate text-[9px] uppercase tracking-[0.09em] text-slate-400">
                     Sales and business consultant.
                   </p>
                 </div>
               </div>
 
               <div className="flex shrink-0 items-center gap-2">
-                <span className="hidden items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.1em] text-emerald-200 min-[370px]:inline-flex">
-                  <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                <span className="hidden items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-2 text-[9px] font-bold uppercase tracking-[0.08em] text-emerald-200 min-[360px]:inline-flex">
+                  <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
                   Live.
                 </span>
 
                 <button
                   type="button"
-                  onClick={closeChatbot}
+                  onClick={() => setIsOpen(false)}
                   aria-label="Close chatbot"
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-400 transition hover:bg-white/10 hover:text-white"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-400 transition hover:bg-white/10 hover:text-white"
                 >
                   <FiX className="h-5 w-5" />
                 </button>
@@ -279,22 +289,22 @@ export default function WhatsAppChatbot() {
             </div>
           </header>
 
-          <div className="min-h-0 overflow-y-auto overscroll-contain">
+          <div className="min-h-0 min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain">
             <div
               ref={messagesRef}
-              className="space-y-4 px-4 py-5 sm:px-5"
+              className="min-w-0 space-y-4 px-4 py-5 sm:px-5"
             >
               {messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex ${
+                  className={`flex min-w-0 ${
                     message.sender === "visitor"
                       ? "justify-end"
                       : "justify-start"
                   }`}
                 >
                   <div
-                    className={`max-w-[88%] break-words rounded-2xl px-4 py-3 text-sm leading-6 ${
+                    className={`max-w-[88%] overflow-hidden break-words rounded-2xl px-4 py-3 text-sm leading-6 ${
                       message.sender === "visitor"
                         ? "rounded-br-md bg-gradient-to-r from-blue-500 to-violet-500 text-white"
                         : "rounded-bl-md border border-white/10 bg-white/[0.05] text-slate-300"
@@ -318,28 +328,28 @@ export default function WhatsAppChatbot() {
               )}
             </div>
 
-            <div className="border-t border-white/10 px-4 py-5 sm:px-5">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+            <div className="min-w-0 border-t border-white/10 px-4 py-5 sm:px-5">
+              <div className="flex min-w-0 items-center justify-between gap-3">
+                <p className="truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
                   Popular questions.
                 </p>
 
-                {hasSelectedQuestion && (
+                {!showQuestions && (
                   <button
                     type="button"
                     onClick={() =>
-                      setHasSelectedQuestion(false)
+                      setShowQuestions(true)
                     }
-                    className="text-xs text-emerald-300 transition hover:text-emerald-200"
+                    className="shrink-0 text-xs text-emerald-300 transition hover:text-emerald-200"
                   >
                     Show all.
                   </button>
                 )}
               </div>
 
-              {!hasSelectedQuestion && (
-                <div className="mt-3 grid gap-2">
-                  {quickQuestions.map((question) => (
+              {showQuestions && (
+                <div className="mt-3 grid min-w-0 gap-2">
+                  {QUICK_QUESTIONS.map((question) => (
                     <button
                       key={question}
                       type="button"
@@ -347,9 +357,9 @@ export default function WhatsAppChatbot() {
                       onClick={() =>
                         handleQuickQuestion(question)
                       }
-                      className="group flex w-full items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.025] px-4 py-3 text-left text-sm leading-5 text-slate-400 transition hover:border-emerald-300/20 hover:bg-emerald-400/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      className="group grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-white/10 bg-white/[0.025] px-4 py-3 text-left text-sm leading-5 text-slate-400 transition hover:border-emerald-300/20 hover:bg-emerald-400/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      <span className="min-w-0">
+                      <span className="min-w-0 break-words">
                         {question}
                       </span>
 
@@ -363,9 +373,9 @@ export default function WhatsAppChatbot() {
 
           <form
             onSubmit={handleSubmit}
-            className="shrink-0 border-t border-white/10 bg-[#07101b] p-4"
+            className="min-w-0 overflow-hidden border-t border-white/10 bg-[#07101b] p-4"
           >
-            <div className="flex items-end gap-3">
+            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_52px] items-end gap-3">
               <textarea
                 rows={1}
                 value={inputValue}
@@ -373,7 +383,7 @@ export default function WhatsAppChatbot() {
                   setInputValue(event.target.value)
                 }
                 placeholder="Ask Mubarok anything."
-                className="min-h-[52px] max-h-24 min-w-0 flex-1 resize-none rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-300/25"
+                className="min-h-[52px] max-h-24 min-w-0 w-full resize-none rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-300/25"
               />
 
               <button
@@ -389,13 +399,16 @@ export default function WhatsAppChatbot() {
             <button
               type="button"
               onClick={continueOnWhatsApp}
-              className="mt-3 inline-flex w-full items-center justify-center gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-400/20"
+              className="mt-3 flex w-full min-w-0 items-center justify-center gap-2 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-center text-sm font-semibold text-emerald-200 transition hover:bg-emerald-400/20"
             >
-              Continue on WhatsApp.
-              <FiCheck className="h-4 w-4" />
+              <span className="truncate">
+                Continue on WhatsApp.
+              </span>
+
+              <FiCheck className="h-4 w-4 shrink-0" />
             </button>
 
-            <p className="mt-3 text-center text-[10px] leading-4 text-slate-600">
+            <p className="mt-3 truncate text-center text-[9px] leading-4 text-slate-600 sm:text-[10px]">
               Your message will open securely in WhatsApp.
             </p>
           </form>
