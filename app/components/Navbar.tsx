@@ -94,71 +94,89 @@ export default function Navbar() {
   useEffect(() => {
     const sectionIds = [
       "home",
-      ...navigationItems.map(
-        (item) => item.sectionId,
-      ),
+      "about",
+      "services",
+      "experience",
+      "projects",
+      "contact",
     ];
 
-    const sections = sectionIds
-      .map((sectionId) =>
-        document.getElementById(sectionId),
-      )
-      .filter(
-        (
-          section,
-        ): section is HTMLElement =>
-          Boolean(section),
-      );
+    function updateActiveSection() {
+      const navbarOffset = 140;
+      const scrollPosition =
+        window.scrollY + navbarOffset;
 
-    if (sections.length === 0) {
-      return;
+      let currentSection = "home";
+
+      for (const sectionId of sectionIds) {
+        const section =
+          document.getElementById(sectionId);
+
+        if (!section) {
+          continue;
+        }
+
+        const sectionTop =
+          section.offsetTop;
+
+        if (scrollPosition >= sectionTop) {
+          currentSection = sectionId;
+        }
+      }
+
+      const nearPageBottom =
+        window.innerHeight +
+          window.scrollY >=
+        document.documentElement.scrollHeight -
+          80;
+
+      if (
+        nearPageBottom &&
+        document.getElementById("contact")
+      ) {
+        currentSection = "contact";
+      }
+
+      setActiveSection(currentSection);
     }
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visibleEntries = entries
-          .filter(
-            (entry) => entry.isIntersecting,
-          )
-          .sort(
-            (firstEntry, secondEntry) =>
-              secondEntry.intersectionRatio -
-              firstEntry.intersectionRatio,
-          );
+    updateActiveSection();
 
-        const mostVisibleSection =
-          visibleEntries[0];
-
-        if (mostVisibleSection) {
-          setActiveSection(
-            mostVisibleSection.target.id,
-          );
-        }
-      },
+    window.addEventListener(
+      "scroll",
+      updateActiveSection,
       {
-        root: null,
-        rootMargin:
-          "-25% 0px -55% 0px",
-        threshold: [
-          0.1,
-          0.25,
-          0.5,
-          0.75,
-        ],
+        passive: true,
       },
     );
 
-    sections.forEach((section) => {
-      observer.observe(section);
-    });
+    window.addEventListener(
+      "resize",
+      updateActiveSection,
+    );
 
     return () => {
-      observer.disconnect();
+      window.removeEventListener(
+        "scroll",
+        updateActiveSection,
+      );
+
+      window.removeEventListener(
+        "resize",
+        updateActiveSection,
+      );
     };
   }, []);
 
   function closeMenu() {
     setIsMenuOpen(false);
+  }
+
+  function handleNavigationClick(
+    sectionId: string,
+  ) {
+    setActiveSection(sectionId);
+    closeMenu();
   }
 
   function handleImageError() {
@@ -172,7 +190,9 @@ export default function Navbar() {
       <nav className="premium-navbar mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-3 py-3 sm:px-4 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:px-6">
         <a
           href="#home"
-          onClick={closeMenu}
+          onClick={() =>
+            handleNavigationClick("home")
+          }
           className="group flex min-w-0 items-center gap-3"
         >
           <span className="relative flex h-11 w-11 shrink-0 overflow-hidden rounded-[14px] border border-white/10 bg-slate-900 shadow-[0_10px_28px_rgba(0,0,0,0.25)]">
@@ -207,6 +227,11 @@ export default function Navbar() {
               <a
                 key={item.label}
                 href={item.href}
+                onClick={() =>
+                  handleNavigationClick(
+                    item.sectionId,
+                  )
+                }
                 className={`relative rounded-full px-4 py-2 text-sm font-medium transition duration-300 ${
                   isActive
                     ? "text-white"
@@ -239,6 +264,9 @@ export default function Navbar() {
 
         <a
           href="#contact"
+          onClick={() =>
+            handleNavigationClick("contact")
+          }
           className="premium-button hidden items-center justify-center gap-3 rounded-full px-7 py-3 text-sm font-bold text-white lg:inline-flex"
         >
           Hire Me.
@@ -301,7 +329,11 @@ export default function Navbar() {
               <a
                 key={item.label}
                 href={item.href}
-                onClick={closeMenu}
+                onClick={() =>
+                  handleNavigationClick(
+                    item.sectionId,
+                  )
+                }
                 className={`mobile-link relative flex items-center justify-between ${
                   isActive
                     ? "text-white"
@@ -325,7 +357,9 @@ export default function Navbar() {
 
           <a
             href="#contact"
-            onClick={closeMenu}
+            onClick={() =>
+              handleNavigationClick("contact")
+            }
             className="premium-button mt-2 inline-flex items-center justify-center gap-3 rounded-xl px-5 py-3 font-semibold text-white"
           >
             Hire Me.
