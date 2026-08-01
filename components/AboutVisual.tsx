@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
 import {
   FiAward,
   FiGlobe,
@@ -10,7 +11,7 @@ import {
 } from "react-icons/fi";
 
 type AboutVisualProps = {
-  imageUrl?: string;
+  imageUrl?: string | null;
 };
 
 const highlights = [
@@ -36,9 +37,32 @@ const highlights = [
   },
 ];
 
+const FALLBACK_IMAGE = "/profile.webp";
+
 export default function AboutVisual({
-  imageUrl = "/profile.webp",
+  imageUrl,
 }: AboutVisualProps) {
+  const [resolvedImageUrl, setResolvedImageUrl] =
+    useState(FALLBACK_IMAGE);
+
+  useEffect(() => {
+    const cleanUrl = imageUrl?.trim();
+
+    setResolvedImageUrl(
+      cleanUrl || FALLBACK_IMAGE,
+    );
+  }, [imageUrl]);
+
+  function handleImageError() {
+    if (resolvedImageUrl !== FALLBACK_IMAGE) {
+      setResolvedImageUrl(FALLBACK_IMAGE);
+    }
+  }
+
+  const isRemoteImage =
+    resolvedImageUrl.startsWith("http://") ||
+    resolvedImageUrl.startsWith("https://");
+
   return (
     <div className="relative mx-auto w-full max-w-[520px]">
       <div className="pointer-events-none absolute left-1/2 top-1/2 h-[440px] w-[440px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-500/10 blur-[120px]" />
@@ -66,9 +90,13 @@ export default function AboutVisual({
       >
         <div className="relative min-h-[560px] overflow-hidden rounded-[28px] border border-white/10 bg-gradient-to-br from-violet-500/20 via-slate-900/40 to-slate-950">
           <Image
-            src={imageUrl}
+            key={resolvedImageUrl}
+            src={resolvedImageUrl}
             alt="Mobarok Hossain"
             fill
+            priority={false}
+            unoptimized={isRemoteImage}
+            onError={handleImageError}
             sizes="(max-width: 768px) 100vw, 520px"
             className="object-cover object-[center_24%]"
           />
