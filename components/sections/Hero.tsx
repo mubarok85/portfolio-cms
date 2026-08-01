@@ -54,7 +54,11 @@ export default function Hero() {
 
         const result = await response.json();
 
-        if (response.ok && result.success && result.data) {
+        if (
+          response.ok &&
+          result.success &&
+          result.data
+        ) {
           setHeroData({
             badge_text:
               result.data.badge_text ||
@@ -93,19 +97,26 @@ export default function Hero() {
               defaultHeroData.profile_image_url,
 
             clients_supported:
-              Number(result.data.clients_supported) ||
+              Number(
+                result.data.clients_supported,
+              ) ||
               defaultHeroData.clients_supported,
 
             countries_reached:
-              Number(result.data.countries_reached) ||
+              Number(
+                result.data.countries_reached,
+              ) ||
               defaultHeroData.countries_reached,
 
             years_experience:
-              Number(result.data.years_experience) ||
+              Number(
+                result.data.years_experience,
+              ) ||
               defaultHeroData.years_experience,
 
             is_available:
-              typeof result.data.is_available === "boolean"
+              typeof result.data.is_available ===
+              "boolean"
                 ? result.data.is_available
                 : defaultHeroData.is_available,
           });
@@ -140,27 +151,23 @@ export default function Hero() {
     <Spotlight className="hero-section section-atmosphere">
       <section
         id="home"
-        className="relative w-full overflow-hidden px-5 pb-20 pt-28 text-white sm:px-6 sm:pt-32 md:pb-28 md:pt-40"
+        className="relative w-full overflow-hidden px-3 pb-20 pt-24 text-white sm:px-5 sm:pb-24 sm:pt-32 md:px-6 md:pb-28 md:pt-40"
       >
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute left-[-220px] top-[30px] h-[420px] w-[420px] rounded-full bg-blue-600/15 blur-[120px] sm:left-[-140px] sm:h-[480px] sm:w-[480px]" />
+          <div className="absolute left-[-240px] top-[30px] h-[420px] w-[420px] rounded-full bg-blue-600/15 blur-[120px]" />
 
-          <div className="absolute right-[-240px] top-[80px] h-[430px] w-[430px] rounded-full bg-violet-600/15 blur-[130px] sm:right-[-120px] sm:h-[500px] sm:w-[500px]" />
-
-          <div className="pulse-orbit absolute left-[10%] top-[28%] h-2 w-2 rounded-full bg-blue-300 shadow-[0_0_20px_rgba(147,197,253,0.95)]" />
-
-          <div className="pulse-orbit absolute right-[12%] top-[24%] h-2 w-2 rounded-full bg-violet-300 shadow-[0_0_20px_rgba(196,181,253,0.95)]" />
+          <div className="absolute right-[-250px] top-[80px] h-[430px] w-[430px] rounded-full bg-violet-600/15 blur-[130px]" />
         </div>
 
-        <div className="relative mx-auto grid w-full max-w-7xl min-w-0 items-center gap-14 lg:min-h-[760px] lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
+        <div className="relative mx-auto grid w-full max-w-7xl min-w-0 items-center gap-10 lg:min-h-[760px] lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
           <div className="relative z-10 min-w-0">
             <Reveal>
               {heroData.is_available && (
-                <div className="section-label mb-6 max-w-full text-[10px] tracking-[0.12em] sm:mb-7 sm:text-xs">
+                <div className="section-label mb-6 max-w-full text-[9px] tracking-[0.1em] sm:text-xs">
                   <span className="relative flex h-2.5 w-2.5 shrink-0">
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
 
-                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.85)]" />
+                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
                   </span>
 
                   <span className="min-w-0 break-words">
@@ -171,7 +178,7 @@ export default function Hero() {
             </Reveal>
 
             <Reveal delay={100}>
-              <h1 className="max-w-full break-words text-[42px] font-extrabold leading-[0.98] tracking-[-0.045em] sm:text-5xl md:text-7xl xl:text-[84px]">
+              <h1 className="max-w-full break-words text-[39px] font-extrabold leading-[0.98] tracking-[-0.045em] sm:text-5xl md:text-7xl xl:text-[84px]">
                 {heroData.title}{" "}
                 <span className="text-gradient">
                   {heroData.highlighted_title}
@@ -180,15 +187,17 @@ export default function Hero() {
             </Reveal>
 
             <Reveal delay={200}>
-              <p className="mt-6 max-w-2xl break-words text-sm leading-7 text-slate-400 sm:mt-7 sm:text-base md:text-lg md:leading-8">
+              <p className="mt-6 max-w-2xl break-words text-sm leading-7 text-slate-400 sm:text-base md:text-lg md:leading-8">
                 {heroData.description}
               </p>
             </Reveal>
 
             <Reveal delay={300}>
-              <div className="mt-8 grid w-full gap-3 sm:flex sm:flex-wrap sm:items-center sm:gap-4">
+              <div className="mt-8 grid w-full gap-3 sm:flex sm:flex-wrap">
                 <MagneticLink
-                  href={heroData.primary_button_url}
+                  href={
+                    heroData.primary_button_url
+                  }
                   className="premium-button inline-flex w-full items-center justify-center gap-3 rounded-full px-6 py-4 text-sm font-semibold text-white sm:w-auto sm:px-8 sm:text-base"
                 >
                   {heroData.primary_button_text}.
@@ -196,7 +205,10 @@ export default function Hero() {
                 </MagneticLink>
 
                 <MagneticLink
-                  href={heroData.resume_url || "/resume.pdf"}
+                  href={
+                    heroData.resume_url ||
+                    "/resume.pdf"
+                  }
                   download
                   className="secondary-button inline-flex w-full items-center justify-center gap-3 rounded-full px-6 py-4 text-sm font-semibold text-white sm:w-auto sm:px-8 sm:text-base"
                 >
@@ -206,14 +218,14 @@ export default function Hero() {
               </div>
             </Reveal>
 
-            <div className="mt-10 grid w-full gap-4 sm:mt-12 sm:grid-cols-3">
+            <div className="mt-10 grid w-full grid-cols-3 gap-2 sm:gap-4">
               {stats.map((item, index) => (
                 <Reveal
                   key={item.label}
                   delay={400 + index * 100}
                 >
-                  <div className="premium-card animated-card flex min-h-[150px] w-full flex-col items-center justify-center rounded-3xl px-5 py-6 text-center">
-                    <p className="whitespace-nowrap text-4xl font-extrabold text-white">
+                  <div className="premium-card animated-card flex min-h-[118px] w-full flex-col items-center justify-center rounded-2xl px-2 py-4 text-center sm:min-h-[150px] sm:rounded-3xl sm:px-5 sm:py-6">
+                    <p className="whitespace-nowrap text-2xl font-extrabold text-white sm:text-4xl">
                       <CountUp
                         key={`${item.label}-${item.end}`}
                         end={item.end}
@@ -225,7 +237,7 @@ export default function Hero() {
                       {item.suffix}
                     </p>
 
-                    <p className="mt-3 text-sm leading-6 text-slate-400">
+                    <p className="mt-2 text-[10px] leading-4 text-slate-400 sm:mt-3 sm:text-sm sm:leading-6">
                       {item.label}.
                     </p>
                   </div>
@@ -236,26 +248,18 @@ export default function Hero() {
 
           <Reveal direction="scale" delay={250}>
             <HeroCard
-              imageUrl={heroData.profile_image_url}
+              imageUrl={
+                heroData.profile_image_url
+              }
               countriesReached={
                 heroData.countries_reached
               }
-              isAvailable={heroData.is_available}
+              isAvailable={
+                heroData.is_available
+              }
             />
           </Reveal>
         </div>
-
-        <a
-          href="#about"
-          aria-label="Scroll to About section"
-          className="absolute bottom-8 left-1/2 hidden -translate-x-1/2 flex-col items-center gap-3 text-xs font-medium uppercase tracking-[0.3em] text-slate-500 transition-colors duration-300 hover:text-white md:flex"
-        >
-          <span>Scroll.</span>
-
-          <span className="relative h-10 w-px overflow-hidden bg-white/10">
-            <span className="hero-scroll-line absolute left-0 top-0 h-5 w-px bg-gradient-to-b from-blue-400 to-violet-400" />
-          </span>
-        </a>
       </section>
     </Spotlight>
   );

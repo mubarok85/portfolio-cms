@@ -32,26 +32,42 @@ const orbitItems = [
   {
     icon: FiTrendingUp,
     label: "Sales Growth",
-    orbitClass: "hero-planet-orbit-one",
-    colorClass: "text-blue-200",
+    desktopPosition:
+      "left-[14%] top-[9%]",
+    mobilePosition:
+      "left-[8%] top-[15%]",
+    color: "text-blue-200",
+    delay: 0,
   },
   {
     icon: FiMessageCircle,
     label: "Client Communication",
-    orbitClass: "hero-planet-orbit-two",
-    colorClass: "text-violet-200",
+    desktopPosition:
+      "right-[9%] top-[29%]",
+    mobilePosition:
+      "right-[6%] top-[31%]",
+    color: "text-violet-200",
+    delay: 0.6,
   },
   {
     icon: FiGlobe,
     label: "Global Reach",
-    orbitClass: "hero-planet-orbit-three",
-    colorClass: "text-cyan-200",
+    desktopPosition:
+      "bottom-[24%] left-[11%]",
+    mobilePosition:
+      "bottom-[31%] left-[7%]",
+    color: "text-cyan-200",
+    delay: 1.2,
   },
   {
     icon: FiBarChart2,
     label: "Business Strategy",
-    orbitClass: "hero-planet-orbit-four",
-    colorClass: "text-indigo-200",
+    desktopPosition:
+      "bottom-[17%] right-[17%]",
+    mobilePosition:
+      "bottom-[25%] right-[9%]",
+    color: "text-indigo-200",
+    delay: 1.8,
   },
 ];
 
@@ -60,7 +76,8 @@ export default function HeroCard({
   countriesReached = 50,
   isAvailable = true,
 }: HeroCardProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef =
+    useRef<HTMLDivElement>(null);
 
   const [resolvedImageUrl, setResolvedImageUrl] =
     useState(FALLBACK_IMAGE);
@@ -171,18 +188,18 @@ export default function HeroCard({
       ref={containerRef}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      className="relative mx-auto flex min-h-[540px] w-full max-w-[720px] items-center justify-center overflow-hidden sm:min-h-[650px] xl:overflow-visible"
+      className="relative mx-auto flex min-h-[540px] w-full max-w-[720px] items-start justify-center overflow-hidden sm:min-h-[670px] sm:items-center xl:overflow-visible"
     >
-      <div className="pointer-events-none absolute left-1/2 top-[46%] h-[390px] w-[390px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500/10 blur-[95px] sm:h-[520px] sm:w-[520px]" />
+      <div className="pointer-events-none absolute left-1/2 top-[38%] h-[320px] w-[320px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500/10 blur-[85px] sm:top-[43%] sm:h-[520px] sm:w-[520px]" />
 
-      <div className="pointer-events-none absolute left-1/2 top-[46%] h-[330px] w-[330px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-500/10 blur-[105px] sm:h-[460px] sm:w-[460px]" />
+      <div className="pointer-events-none absolute left-1/2 top-[38%] h-[280px] w-[280px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-500/10 blur-[95px] sm:top-[43%] sm:h-[460px] sm:w-[460px]" />
 
       <motion.div
         style={{
           x: outerRingX,
           y: outerRingY,
         }}
-        className="pointer-events-none absolute left-1/2 top-[46%] h-[370px] w-[370px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-blue-300/10 sm:h-[540px] sm:w-[540px]"
+        className="pointer-events-none absolute left-1/2 top-[38%] h-[325px] w-[325px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-blue-300/10 sm:top-[43%] sm:h-[540px] sm:w-[540px]"
       />
 
       <motion.div
@@ -190,35 +207,61 @@ export default function HeroCard({
           x: middleRingX,
           y: middleRingY,
         }}
-        className="pointer-events-none absolute left-1/2 top-[46%] h-[315px] w-[315px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-violet-300/10 sm:h-[465px] sm:w-[465px]"
+        className="pointer-events-none absolute left-1/2 top-[38%] h-[280px] w-[280px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-violet-300/10 sm:top-[43%] sm:h-[465px] sm:w-[465px]"
       />
 
-      <div className="pointer-events-none absolute left-1/2 top-[46%] h-[265px] w-[265px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-300/10 sm:h-[395px] sm:w-[395px]" />
+      <div className="pointer-events-none absolute left-1/2 top-[38%] h-[235px] w-[235px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-300/10 sm:top-[43%] sm:h-[395px] sm:w-[395px]" />
 
-      <div className="pointer-events-none absolute left-1/2 top-[46%] hidden h-[540px] w-[540px] -translate-x-1/2 -translate-y-1/2 sm:block">
-        {orbitItems.map((item) => {
-          const Icon = item.icon;
+      {orbitItems.map((item, index) => {
+        const Icon = item.icon;
 
-          return (
-            <div
-              key={item.label}
-              className={`hero-planet-orbit ${item.orbitClass}`}
-              aria-label={item.label}
-            >
-              <div
-                className={`hero-planet-icon ${item.colorClass}`}
-              >
-                <Icon className="h-5 w-5" />
-              </div>
-            </div>
-          );
-        })}
-      </div>
+        return (
+          <motion.div
+            key={item.label}
+            initial={{
+              opacity: 0,
+              scale: 0.75,
+            }}
+            animate={{
+              opacity: 1,
+              scale: 1,
+              y: [0, -8, 0],
+              rotate: [0, 4, 0, -4, 0],
+            }}
+            transition={{
+              opacity: {
+                delay: 0.25 + index * 0.08,
+                duration: 0.4,
+              },
+              scale: {
+                delay: 0.25 + index * 0.08,
+                duration: 0.4,
+              },
+              y: {
+                delay: item.delay,
+                duration: 4.8 + index * 0.35,
+                repeat: Infinity,
+                ease: "easeInOut",
+              },
+              rotate: {
+                delay: item.delay,
+                duration: 6 + index * 0.4,
+                repeat: Infinity,
+                ease: "easeInOut",
+              },
+            }}
+            aria-label={item.label}
+            className={`absolute z-30 flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-[#0b1225]/95 shadow-[0_14px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:h-12 sm:w-12 ${item.color} ${item.mobilePosition} sm:${item.desktopPosition}`}
+          >
+            <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+          </motion.div>
+        );
+      })}
 
       <motion.div
         initial={{
           opacity: 0,
-          y: 28,
+          y: 24,
           scale: 0.94,
         }}
         animate={{
@@ -236,14 +279,14 @@ export default function HeroCard({
           transformStyle: "preserve-3d",
           perspective: 1200,
         }}
-        className="hero-card-shell relative z-10 mb-20 flex h-[300px] w-[300px] items-center justify-center rounded-full sm:mb-24 sm:h-[410px] sm:w-[410px]"
+        className="hero-card-shell relative z-10 mt-10 flex h-[285px] w-[285px] items-center justify-center rounded-full sm:mt-0 sm:h-[410px] sm:w-[410px]"
       >
         <div className="hero-rotating-ring" />
 
         <div className="hero-card-glow pointer-events-none absolute inset-[14px] rounded-full sm:inset-[18px]" />
 
         <div
-          className="relative z-10 h-[238px] w-[238px] overflow-hidden rounded-full border border-white/10 bg-[#050816] shadow-[0_24px_80px_rgba(0,0,0,0.5)] sm:h-[326px] sm:w-[326px]"
+          className="relative z-10 h-[226px] w-[226px] overflow-hidden rounded-full border border-white/10 bg-[#050816] shadow-[0_24px_80px_rgba(0,0,0,0.5)] sm:h-[326px] sm:w-[326px]"
           style={{
             transform: "translateZ(38px)",
           }}
@@ -256,7 +299,7 @@ export default function HeroCard({
             priority
             unoptimized={isRemoteImage}
             onError={handleImageError}
-            sizes="(max-width: 640px) 238px, 326px"
+            sizes="(max-width: 640px) 226px, 326px"
             className="object-cover object-[center_24%]"
           />
 
@@ -266,38 +309,30 @@ export default function HeroCard({
         </div>
       </motion.div>
 
-      <div className="absolute inset-x-0 bottom-5 z-30 hidden grid-cols-3 gap-4 px-4 xl:grid">
+      <div className="absolute inset-x-1 bottom-3 z-40 grid grid-cols-3 gap-2 sm:inset-x-4 sm:bottom-5 sm:gap-4">
         <motion.div
           animate={{
-            y: [0, -8, 0],
+            y: [0, -5, 0],
           }}
           transition={{
             duration: 5.2,
             repeat: Infinity,
             ease: "easeInOut",
           }}
-          className="premium-card min-h-[116px] rounded-3xl p-5"
+          className="premium-card flex min-h-[92px] flex-col items-center justify-center rounded-2xl px-2 py-3 text-center sm:min-h-[116px] sm:rounded-3xl sm:px-5 sm:py-5"
         >
-          <div className="flex items-start gap-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-emerald-300/15 bg-emerald-400/10 text-emerald-300">
-              <FiTrendingUp className="h-5 w-5" />
-            </div>
-
-            <div className="min-w-0">
-              <p className="font-semibold text-white">
-                Growth Focused.
-              </p>
-
-              <p className="mt-2 text-sm leading-6 text-slate-400">
-                Strategic sales execution.
-              </p>
-            </div>
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-emerald-300/15 bg-emerald-400/10 text-emerald-300 sm:h-10 sm:w-10 sm:rounded-2xl">
+            <FiTrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
+
+          <p className="mt-2 text-[11px] font-semibold leading-4 text-white sm:text-sm">
+            Growth Focused.
+          </p>
         </motion.div>
 
         <motion.div
           animate={{
-            y: [0, -10, 0],
+            y: [0, -7, 0],
           }}
           transition={{
             duration: 5.8,
@@ -305,71 +340,41 @@ export default function HeroCard({
             repeat: Infinity,
             ease: "easeInOut",
           }}
-          className="premium-card min-h-[116px] rounded-3xl p-5 text-center"
+          className="premium-card flex min-h-[92px] flex-col items-center justify-center rounded-2xl px-2 py-3 text-center sm:min-h-[116px] sm:rounded-3xl sm:px-5 sm:py-5"
         >
-          <p className="text-sm text-slate-400">
+          <p className="text-[9px] leading-4 text-slate-400 sm:text-xs">
             Trusted across.
           </p>
 
-          <p className="mt-3 text-xl font-bold leading-7 text-white">
-            {countriesReached}+ Countries Worldwide.
+          <p className="mt-1 text-[12px] font-bold leading-4 text-white sm:mt-2 sm:text-lg sm:leading-6">
+            {countriesReached}+ Countries.
           </p>
         </motion.div>
 
-        {isAvailable ? (
-          <motion.div
-            animate={{
-              y: [0, -7, 0],
-            }}
-            transition={{
-              duration: 5.5,
-              delay: 1.2,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-            className="premium-card flex min-h-[116px] items-center justify-center rounded-3xl p-5"
-          >
-            <div className="flex items-center gap-3">
-              <span className="relative flex h-3 w-3 shrink-0">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
+        <motion.div
+          animate={{
+            y: [0, -5, 0],
+          }}
+          transition={{
+            duration: 5.5,
+            delay: 1.2,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+          className="premium-card flex min-h-[92px] flex-col items-center justify-center rounded-2xl px-2 py-3 text-center sm:min-h-[116px] sm:rounded-3xl sm:px-5 sm:py-5"
+        >
+          <span className="relative flex h-3 w-3">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
 
-                <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-400" />
-              </span>
+            <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-400" />
+          </span>
 
-              <span className="font-medium text-white">
-                Available for work.
-              </span>
-            </div>
-          </motion.div>
-        ) : (
-          <div className="premium-card min-h-[116px] rounded-3xl p-5" />
-        )}
-      </div>
-
-      <div className="absolute inset-x-4 bottom-4 z-30 grid gap-3 sm:grid-cols-2 xl:hidden">
-        <div className="premium-card rounded-2xl px-5 py-4 text-center">
-          <p className="text-xs text-slate-400">
-            Trusted across.
+          <p className="mt-2 text-[11px] font-semibold leading-4 text-white sm:text-sm">
+            {isAvailable
+              ? "Available."
+              : "Unavailable."}
           </p>
-
-          <p className="mt-1 font-bold text-white">
-            {countriesReached}+ Countries Worldwide.
-          </p>
-        </div>
-
-        {isAvailable && (
-          <div className="premium-card flex items-center justify-center gap-3 rounded-2xl px-5 py-4">
-            <span className="relative flex h-3 w-3 shrink-0">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
-
-              <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-400" />
-            </span>
-
-            <span className="text-sm font-medium text-white">
-              Available for work.
-            </span>
-          </div>
-        )}
+        </motion.div>
       </div>
     </div>
   );
