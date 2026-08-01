@@ -105,7 +105,8 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          message: "Name must contain between 2 and 100 characters.",
+          message:
+            "Name must contain between 2 and 100 characters.",
         },
         {
           status: 400,
@@ -129,7 +130,8 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          message: "Subject must contain between 2 and 200 characters.",
+          message:
+            "Subject must contain between 2 and 200 characters.",
         },
         {
           status: 400,
@@ -141,7 +143,8 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          message: "Message must contain between 5 and 5000 characters.",
+          message:
+            "Message must contain between 5 and 5000 characters.",
         },
         {
           status: 400,
@@ -149,7 +152,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("messages")
       .insert({
         name,
@@ -157,9 +160,7 @@ export async function POST(request: Request) {
         subject,
         message,
         is_read: false,
-      })
-      .select("id")
-      .single();
+      });
 
     if (error) {
       return NextResponse.json(
@@ -175,7 +176,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      data,
       message: "Your message was sent successfully.",
     });
   } catch (error) {
