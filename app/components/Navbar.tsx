@@ -6,22 +6,27 @@ const navigationItems = [
   {
     label: "About",
     href: "#about",
+    sectionId: "about",
   },
   {
     label: "Services",
     href: "#services",
+    sectionId: "services",
   },
   {
     label: "Experience",
     href: "#experience",
+    sectionId: "experience",
   },
   {
     label: "Projects",
     href: "#projects",
+    sectionId: "projects",
   },
   {
     label: "Contact",
     href: "#contact",
+    sectionId: "contact",
   },
 ];
 
@@ -42,6 +47,9 @@ export default function Navbar() {
 
   const [imageUrl, setImageUrl] =
     useState(DEFAULT_IMAGE);
+
+  const [activeSection, setActiveSection] =
+    useState("home");
 
   useEffect(() => {
     async function loadSettings() {
@@ -81,6 +89,72 @@ export default function Navbar() {
     }
 
     loadSettings();
+  }, []);
+
+  useEffect(() => {
+    const sectionIds = [
+      "home",
+      ...navigationItems.map(
+        (item) => item.sectionId,
+      ),
+    ];
+
+    const sections = sectionIds
+      .map((sectionId) =>
+        document.getElementById(sectionId),
+      )
+      .filter(
+        (
+          section,
+        ): section is HTMLElement =>
+          Boolean(section),
+      );
+
+    if (sections.length === 0) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visibleEntries = entries
+          .filter(
+            (entry) => entry.isIntersecting,
+          )
+          .sort(
+            (firstEntry, secondEntry) =>
+              secondEntry.intersectionRatio -
+              firstEntry.intersectionRatio,
+          );
+
+        const mostVisibleSection =
+          visibleEntries[0];
+
+        if (mostVisibleSection) {
+          setActiveSection(
+            mostVisibleSection.target.id,
+          );
+        }
+      },
+      {
+        root: null,
+        rootMargin:
+          "-25% 0px -55% 0px",
+        threshold: [
+          0.1,
+          0.25,
+          0.5,
+          0.75,
+        ],
+      },
+    );
+
+    sections.forEach((section) => {
+      observer.observe(section);
+    });
+
+    return () => {
+      observer.disconnect();
+    };
   }, []);
 
   function closeMenu() {
@@ -125,15 +199,42 @@ export default function Navbar() {
         </a>
 
         <div className="hidden min-w-0 items-center justify-center gap-1 lg:flex">
-          {navigationItems.map((item) => (
-            <a
-              key={item.label}
-              href={item.href}
-              className="nav-link"
-            >
-              {item.label}.
-            </a>
-          ))}
+          {navigationItems.map((item) => {
+            const isActive =
+              activeSection === item.sectionId;
+
+            return (
+              <a
+                key={item.label}
+                href={item.href}
+                className={`relative rounded-full px-4 py-2 text-sm font-medium transition duration-300 ${
+                  isActive
+                    ? "text-white"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <span className="relative z-10">
+                  {item.label}.
+                </span>
+
+                <span
+                  className={`absolute inset-x-3 bottom-1 h-px origin-center bg-gradient-to-r from-cyan-400 via-blue-400 to-violet-400 transition duration-300 ${
+                    isActive
+                      ? "scale-x-100 opacity-100"
+                      : "scale-x-0 opacity-0"
+                  }`}
+                />
+
+                <span
+                  className={`absolute left-1/2 top-0 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-cyan-300 shadow-[0_0_12px_rgba(103,232,249,0.9)] transition duration-300 ${
+                    isActive
+                      ? "scale-100 opacity-100"
+                      : "scale-0 opacity-0"
+                  }`}
+                />
+              </a>
+            );
+          })}
         </div>
 
         <a
@@ -192,16 +293,35 @@ export default function Navbar() {
         }`}
       >
         <div className="mobile-menu">
-          {navigationItems.map((item) => (
-            <a
-              key={item.label}
-              href={item.href}
-              onClick={closeMenu}
-              className="mobile-link"
-            >
-              {item.label}.
-            </a>
-          ))}
+          {navigationItems.map((item) => {
+            const isActive =
+              activeSection === item.sectionId;
+
+            return (
+              <a
+                key={item.label}
+                href={item.href}
+                onClick={closeMenu}
+                className={`mobile-link relative flex items-center justify-between ${
+                  isActive
+                    ? "text-white"
+                    : ""
+                }`}
+              >
+                <span>
+                  {item.label}.
+                </span>
+
+                <span
+                  className={`h-2.5 w-2.5 rounded-full bg-gradient-to-r from-cyan-400 to-violet-400 shadow-[0_0_14px_rgba(103,232,249,0.7)] transition duration-300 ${
+                    isActive
+                      ? "scale-100 opacity-100"
+                      : "scale-0 opacity-0"
+                  }`}
+                />
+              </a>
+            );
+          })}
 
           <a
             href="#contact"
