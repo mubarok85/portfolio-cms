@@ -13,7 +13,7 @@ import {
   FiCheck,
   FiMessageCircle,
   FiSend,
-  FiSparkles,
+  FiStar,
   FiX,
 } from "react-icons/fi";
 
@@ -53,8 +53,7 @@ const QUICK_QUESTIONS = [
   {
     title: "Mobile application.",
     description: "Plan an application and its requirements.",
-    message:
-      "I want to discuss a mobile application.",
+    message: "I want to discuss a mobile application.",
     accent:
       "from-emerald-500/20 via-teal-500/10 to-transparent",
     iconColor: "text-emerald-300",
@@ -299,6 +298,7 @@ export default function WhatsAppChatbot() {
       return;
     }
 
+    event.preventDefault();
     event.stopPropagation();
 
     container.scrollBy({
@@ -342,7 +342,7 @@ export default function WhatsAppChatbot() {
                       Mubarok Hossain.
                     </p>
 
-                    <FiSparkles className="h-4 w-4 shrink-0 text-violet-300" />
+                    <FiStar className="h-4 w-4 shrink-0 text-violet-300" />
                   </div>
 
                   <p className="mt-1 truncate text-[9px] uppercase tracking-[0.1em] text-slate-400 sm:text-[10px]">
