@@ -30,6 +30,7 @@ type NavbarSettings = {
   navbar_image_url?: string | null;
 };
 
+const DEFAULT_TITLE = "Mubarok Hossain";
 const DEFAULT_IMAGE = "/profile.webp";
 
 export default function Navbar() {
@@ -37,22 +38,16 @@ export default function Navbar() {
     useState(false);
 
   const [siteTitle, setSiteTitle] =
-    useState("Mubarok Hossain");
+    useState(DEFAULT_TITLE);
 
-  const [navbarImage, setNavbarImage] =
+  const [imageUrl, setImageUrl] =
     useState(DEFAULT_IMAGE);
-
-  const [displayedImage, setDisplayedImage] =
-    useState(DEFAULT_IMAGE);
-
-  const [isImageVisible, setIsImageVisible] =
-    useState(false);
 
   useEffect(() => {
-    async function loadNavbarSettings() {
+    async function loadSettings() {
       try {
         const response = await fetch(
-          `/api/settings?navbar=${Date.now()}`,
+          `/api/settings?t=${Date.now()}`,
           {
             method: "GET",
             cache: "no-store",
@@ -69,57 +64,33 @@ export default function Navbar() {
           const settings =
             result.data as NavbarSettings;
 
-          const nextTitle =
+          setSiteTitle(
             settings.site_title?.trim() ||
-            "Mubarok Hossain";
+              DEFAULT_TITLE,
+          );
 
-          const nextImage =
+          setImageUrl(
             settings.navbar_image_url?.trim() ||
-            DEFAULT_IMAGE;
-
-          setSiteTitle(nextTitle);
-          setNavbarImage(nextImage);
-          setDisplayedImage(nextImage);
-          setIsImageVisible(false);
-
-          return;
+              DEFAULT_IMAGE,
+          );
         }
-
-        setSiteTitle("Mubarok Hossain");
-        setNavbarImage(DEFAULT_IMAGE);
-        setDisplayedImage(DEFAULT_IMAGE);
       } catch {
-        setSiteTitle("Mubarok Hossain");
-        setNavbarImage(DEFAULT_IMAGE);
-        setDisplayedImage(DEFAULT_IMAGE);
+        setSiteTitle(DEFAULT_TITLE);
+        setImageUrl(DEFAULT_IMAGE);
       }
     }
 
-    loadNavbarSettings();
+    loadSettings();
   }, []);
-
-  useEffect(() => {
-    setDisplayedImage(navbarImage);
-    setIsImageVisible(false);
-  }, [navbarImage]);
 
   function closeMenu() {
     setIsMenuOpen(false);
   }
 
-  function handleImageLoad() {
-    setIsImageVisible(true);
-  }
-
   function handleImageError() {
-    if (displayedImage !== DEFAULT_IMAGE) {
-      setDisplayedImage(DEFAULT_IMAGE);
-      setIsImageVisible(false);
-
-      return;
+    if (imageUrl !== DEFAULT_IMAGE) {
+      setImageUrl(DEFAULT_IMAGE);
     }
-
-    setIsImageVisible(false);
   }
 
   return (
@@ -130,23 +101,16 @@ export default function Navbar() {
           onClick={closeMenu}
           className="group flex min-w-0 items-center gap-3"
         >
-          <span className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[14px] border border-white/10 bg-white/[0.06] shadow-[0_10px_28px_rgba(0,0,0,0.25)]">
-            <span className="absolute inset-0 animate-pulse bg-gradient-to-br from-blue-400/10 to-violet-500/10" />
-
+          <span className="relative flex h-11 w-11 shrink-0 overflow-hidden rounded-[14px] border border-white/10 bg-slate-900 shadow-[0_10px_28px_rgba(0,0,0,0.25)]">
             <img
-              key={displayedImage}
-              src={displayedImage}
+              key={imageUrl}
+              src={imageUrl}
               alt="Mubarok Hossain"
-              onLoad={handleImageLoad}
               onError={handleImageError}
-              className={`relative h-full w-full object-cover object-center transition-opacity duration-300 ${
-                isImageVisible
-                  ? "opacity-100"
-                  : "opacity-0"
-              }`}
+              className="absolute inset-0 h-full w-full object-cover object-center"
             />
 
-            <span className="pointer-events-none absolute inset-0 rounded-[14px] ring-1 ring-inset ring-white/10" />
+            <span className="pointer-events-none absolute inset-0 rounded-[14px] ring-1 ring-inset ring-white/15" />
           </span>
 
           <div className="min-w-0">
