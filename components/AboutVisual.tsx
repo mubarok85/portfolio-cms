@@ -23,7 +23,7 @@ const highlights = [
   {
     icon: FiTrendingUp,
     label: "Business Growth",
-    value: "500+ Clients",
+    value: "600+ Clients",
   },
   {
     icon: FiAward,
