@@ -1304,3 +1304,115 @@ section:not(:last-child)::after {
     bottom: 10%;
   }
 }
+/* Hero planet orbit system. */
+
+.hero-planet-orbit {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.hero-planet-icon {
+  position: absolute;
+  top: -24px;
+  left: calc(50% - 24px);
+  display: flex;
+  height: 48px;
+  width: 48px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(16, 25, 52, 0.94),
+      rgba(8, 13, 29, 0.9)
+    );
+  box-shadow:
+    0 16px 42px rgba(0, 0, 0, 0.38),
+    0 0 28px rgba(101, 116, 255, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.hero-planet-orbit-one {
+  animation: heroPlanetOrbitOne 18s linear infinite;
+}
+
+.hero-planet-orbit-two {
+  animation: heroPlanetOrbitTwo 23s linear infinite;
+}
+
+.hero-planet-orbit-three {
+  animation: heroPlanetOrbitThree 28s linear infinite;
+}
+
+.hero-planet-orbit-four {
+  animation: heroPlanetOrbitFour 32s linear infinite;
+}
+
+.hero-planet-orbit-one .hero-planet-icon {
+  transform: translateY(0);
+}
+
+.hero-planet-orbit-two .hero-planet-icon {
+  top: 26px;
+}
+
+.hero-planet-orbit-three .hero-planet-icon {
+  top: 62px;
+}
+
+.hero-planet-orbit-four .hero-planet-icon {
+  top: 98px;
+}
+
+@keyframes heroPlanetOrbitOne {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes heroPlanetOrbitTwo {
+  from {
+    transform: rotate(90deg);
+  }
+
+  to {
+    transform: rotate(450deg);
+  }
+}
+
+@keyframes heroPlanetOrbitThree {
+  from {
+    transform: rotate(180deg);
+  }
+
+  to {
+    transform: rotate(540deg);
+  }
+}
+
+@keyframes heroPlanetOrbitFour {
+  from {
+    transform: rotate(270deg);
+  }
+
+  to {
+    transform: rotate(630deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-planet-orbit {
+    animation: none;
+  }
+}
