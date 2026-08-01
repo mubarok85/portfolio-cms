@@ -1,40 +1,130 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const navigationItems = [
-  { label: "About", href: "#about" },
-  { label: "Services", href: "#services" },
-  { label: "Experience", href: "#experience" },
-  { label: "Projects", href: "#projects" },
-  { label: "Contact", href: "#contact" },
+  {
+    label: "About",
+    href: "#about",
+  },
+  {
+    label: "Services",
+    href: "#services",
+  },
+  {
+    label: "Experience",
+    href: "#experience",
+  },
+  {
+    label: "Projects",
+    href: "#projects",
+  },
+  {
+    label: "Contact",
+    href: "#contact",
+  },
 ];
 
+type SettingsData = {
+  site_title?: string | null;
+  navbar_image_url?: string | null;
+};
+
+const defaultSettings: SettingsData = {
+  site_title: "Mubarok Hossain",
+  navbar_image_url: "/profile.webp",
+};
+
 export default function Navbar() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] =
+    useState(false);
+
+  const [settings, setSettings] =
+    useState<SettingsData>(defaultSettings);
+
+  const [imageFailed, setImageFailed] =
+    useState(false);
+
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const response = await fetch(
+          "/api/settings",
+          {
+            cache: "no-store",
+          },
+        );
+
+        const result = await response.json();
+
+        if (
+          response.ok &&
+          result.success &&
+          result.data
+        ) {
+          setSettings({
+            site_title:
+              result.data.site_title ||
+              defaultSettings.site_title,
+
+            navbar_image_url:
+              result.data.navbar_image_url ||
+              defaultSettings.navbar_image_url,
+          });
+        }
+      } catch {
+        setSettings(defaultSettings);
+      }
+    }
+
+    loadSettings();
+  }, []);
 
   function closeMenu() {
     setIsMenuOpen(false);
   }
 
+  const navbarImage =
+    settings.navbar_image_url?.trim() ||
+    "/profile.webp";
+
+  const siteTitle =
+    settings.site_title?.trim() ||
+    "Mubarok Hossain";
+
   return (
-    <header className="fixed left-0 top-0 z-50 w-full px-4 pt-4 md:px-6">
-      <nav className="premium-navbar mx-auto flex max-w-7xl items-center justify-between px-4 py-3 md:px-6">
+    <header className="fixed left-0 top-0 z-50 w-full px-3 pt-3 sm:px-4 sm:pt-4 md:px-6">
+      <nav className="premium-navbar mx-auto flex max-w-7xl items-center justify-between px-3 py-3 sm:px-4 md:px-6">
         <a
-          href="#"
+          href="#home"
           onClick={closeMenu}
-          className="group flex items-center gap-3"
+          className="group flex min-w-0 items-center gap-3"
         >
-          <span className="logo-box">
-            <span>MH.</span>
+          <span className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[14px] border border-white/10 bg-white/[0.06] shadow-[0_10px_28px_rgba(0,0,0,0.25)]">
+            {!imageFailed ? (
+              <img
+                src={navbarImage}
+                alt="Mubarok Hossain"
+                onError={() =>
+                  setImageFailed(true)
+                }
+                className="h-full w-full object-cover object-center"
+              />
+            ) : (
+              <span className="text-xs font-extrabold text-white">
+                MH.
+              </span>
+            )}
+
+            <span className="pointer-events-none absolute inset-0 rounded-[14px] ring-1 ring-inset ring-white/10" />
           </span>
 
-          <div>
-            <p className="text-lg font-extrabold tracking-[-0.04em] text-white">
-              Mobarok.
+          <div className="min-w-0">
+            <p className="truncate text-base font-extrabold tracking-[-0.04em] text-white sm:text-lg">
+              {siteTitle}.
             </p>
 
-            <p className="hidden text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500 sm:block">
+            <p className="hidden truncate text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-500 sm:block sm:text-[10px] sm:tracking-[0.22em]">
               Sales Executive.
             </p>
           </div>
@@ -52,20 +142,15 @@ export default function Navbar() {
           ))}
         </div>
 
-        <div className="hidden items-center gap-3 lg:flex">
-          <a
-            href="#contact"
-            className="px-4 py-2 text-sm font-semibold text-slate-300 transition hover:text-white"
-          >
-            Let&apos;s Talk.
-          </a>
-
+        <div className="hidden items-center lg:flex">
           <a
             href="#contact"
             className="premium-button inline-flex items-center gap-3 rounded-full px-7 py-3 text-sm font-bold text-white"
           >
             Hire Me.
-            <span aria-hidden="true">→</span>
+            <span aria-hidden="true">
+              →
+            </span>
           </a>
         </div>
 
@@ -73,24 +158,35 @@ export default function Navbar() {
           type="button"
           aria-label="Toggle navigation menu."
           aria-expanded={isMenuOpen}
-          onClick={() => setIsMenuOpen((currentValue) => !currentValue)}
+          onClick={() =>
+            setIsMenuOpen(
+              (currentValue) =>
+                !currentValue,
+            )
+          }
           className="menu-button lg:hidden"
         >
           <span
             className={`menu-line ${
-              isMenuOpen ? "translate-y-2 rotate-45" : ""
+              isMenuOpen
+                ? "translate-y-2 rotate-45"
+                : ""
             }`}
           />
 
           <span
             className={`menu-line ${
-              isMenuOpen ? "opacity-0" : ""
+              isMenuOpen
+                ? "opacity-0"
+                : ""
             }`}
           />
 
           <span
             className={`menu-line ${
-              isMenuOpen ? "-translate-y-2 -rotate-45" : ""
+              isMenuOpen
+                ? "-translate-y-2 -rotate-45"
+                : ""
             }`}
           />
         </button>
@@ -121,7 +217,9 @@ export default function Navbar() {
             className="premium-button mt-2 inline-flex items-center justify-center gap-3 rounded-xl px-5 py-3 font-semibold text-white"
           >
             Hire Me.
-            <span aria-hidden="true">→</span>
+            <span aria-hidden="true">
+              →
+            </span>
           </a>
         </div>
       </div>

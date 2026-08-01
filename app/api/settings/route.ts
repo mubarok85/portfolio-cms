@@ -12,6 +12,8 @@ type SettingsPayload = {
   github_url?: string;
   facebook_url?: string;
   copyright_text?: string;
+  navbar_image_url?: string;
+  favicon_url?: string;
 };
 
 export async function GET() {
@@ -56,7 +58,9 @@ export async function GET() {
   }
 }
 
-export async function PUT(request: Request) {
+export async function PUT(
+  request: Request,
+) {
   try {
     const supabase = await createClient();
 
@@ -77,13 +81,23 @@ export async function PUT(request: Request) {
       );
     }
 
-    const body = (await request.json()) as SettingsPayload;
+    const body =
+      (await request.json()) as SettingsPayload;
 
-    const siteTitle = body.site_title?.trim();
-    const siteDescription = body.site_description?.trim();
-    const location = body.location?.trim();
-    const availabilityText = body.availability_text?.trim();
-    const copyrightText = body.copyright_text?.trim();
+    const siteTitle =
+      body.site_title?.trim();
+
+    const siteDescription =
+      body.site_description?.trim();
+
+    const location =
+      body.location?.trim();
+
+    const availabilityText =
+      body.availability_text?.trim();
+
+    const copyrightText =
+      body.copyright_text?.trim();
 
     if (
       !siteTitle ||
@@ -95,7 +109,8 @@ export async function PUT(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          message: "Required settings fields cannot be empty.",
+          message:
+            "Required settings fields cannot be empty.",
         },
         {
           status: 400,
@@ -105,23 +120,53 @@ export async function PUT(request: Request) {
 
     const payload = {
       site_title: siteTitle,
-      site_description: siteDescription,
-      email: body.email?.trim() || null,
-      phone: body.phone?.trim() || null,
+
+      site_description:
+        siteDescription,
+
+      email:
+        body.email?.trim() || null,
+
+      phone:
+        body.phone?.trim() || null,
+
       location,
-      availability_text: availabilityText,
-      linkedin_url: body.linkedin_url?.trim() || null,
-      github_url: body.github_url?.trim() || null,
-      facebook_url: body.facebook_url?.trim() || null,
-      copyright_text: copyrightText,
+
+      availability_text:
+        availabilityText,
+
+      linkedin_url:
+        body.linkedin_url?.trim() ||
+        null,
+
+      github_url:
+        body.github_url?.trim() ||
+        null,
+
+      facebook_url:
+        body.facebook_url?.trim() ||
+        null,
+
+      copyright_text:
+        copyrightText,
+
+      navbar_image_url:
+        body.navbar_image_url?.trim() ||
+        null,
+
+      favicon_url:
+        body.favicon_url?.trim() ||
+        null,
     };
 
-    const { data: existingSettings, error: existingError } =
-      await supabase
-        .from("settings")
-        .select("id")
-        .limit(1)
-        .maybeSingle();
+    const {
+      data: existingSettings,
+      error: existingError,
+    } = await supabase
+      .from("settings")
+      .select("id")
+      .limit(1)
+      .maybeSingle();
 
     if (existingError) {
       return NextResponse.json(
@@ -136,12 +181,16 @@ export async function PUT(request: Request) {
     }
 
     if (existingSettings) {
-      const { data, error } = await supabase
-        .from("settings")
-        .update(payload)
-        .eq("id", existingSettings.id)
-        .select("*")
-        .single();
+      const { data, error } =
+        await supabase
+          .from("settings")
+          .update(payload)
+          .eq(
+            "id",
+            existingSettings.id,
+          )
+          .select("*")
+          .single();
 
       if (error) {
         return NextResponse.json(
@@ -161,11 +210,12 @@ export async function PUT(request: Request) {
       });
     }
 
-    const { data, error } = await supabase
-      .from("settings")
-      .insert(payload)
-      .select("*")
-      .single();
+    const { data, error } =
+      await supabase
+        .from("settings")
+        .insert(payload)
+        .select("*")
+        .single();
 
     if (error) {
       return NextResponse.json(

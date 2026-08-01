@@ -1,6 +1,11 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import {
+  FormEvent,
+  useEffect,
+  useState,
+} from "react";
+import FileUploadField from "./FileUploadField";
 
 type SettingsData = {
   site_title: string;
@@ -13,6 +18,8 @@ type SettingsData = {
   github_url: string;
   facebook_url: string;
   copyright_text: string;
+  navbar_image_url: string;
+  favicon_url: string;
 };
 
 const initialSettings: SettingsData = {
@@ -26,51 +33,99 @@ const initialSettings: SettingsData = {
   github_url: "",
   facebook_url: "",
   copyright_text: "",
+  navbar_image_url: "",
+  favicon_url: "",
 };
+
+function normalizeSettings(
+  data?: Partial<SettingsData> | null,
+): SettingsData {
+  return {
+    site_title:
+      data?.site_title || "",
+
+    site_description:
+      data?.site_description || "",
+
+    email:
+      data?.email || "",
+
+    phone:
+      data?.phone || "",
+
+    location:
+      data?.location || "",
+
+    availability_text:
+      data?.availability_text || "",
+
+    linkedin_url:
+      data?.linkedin_url || "",
+
+    github_url:
+      data?.github_url || "",
+
+    facebook_url:
+      data?.facebook_url || "",
+
+    copyright_text:
+      data?.copyright_text || "",
+
+    navbar_image_url:
+      data?.navbar_image_url || "",
+
+    favicon_url:
+      data?.favicon_url || "",
+  };
+}
 
 export default function SettingsEditor() {
   const [formData, setFormData] =
-    useState<SettingsData>(initialSettings);
+    useState<SettingsData>(
+      initialSettings,
+    );
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [message, setMessage] = useState("");
-  const [hasError, setHasError] = useState(false);
+  const [isLoading, setIsLoading] =
+    useState(true);
+
+  const [isSaving, setIsSaving] =
+    useState(false);
+
+  const [message, setMessage] =
+    useState("");
+
+  const [hasError, setHasError] =
+    useState(false);
 
   useEffect(() => {
     async function loadSettings() {
       try {
-        const response = await fetch("/api/settings", {
-          cache: "no-store",
-        });
+        const response = await fetch(
+          "/api/settings",
+          {
+            cache: "no-store",
+          },
+        );
 
-        const result = await response.json();
+        const result =
+          await response.json();
 
-        if (!response.ok || !result.success) {
+        if (
+          !response.ok ||
+          !result.success
+        ) {
           throw new Error(
-            result.message || "Unable to load settings.",
+            result.message ||
+              "Unable to load settings.",
           );
         }
 
-        if (result.data) {
-          setFormData({
-            site_title: result.data.site_title || "",
-            site_description:
-              result.data.site_description || "",
-            email: result.data.email || "",
-            phone: result.data.phone || "",
-            location: result.data.location || "",
-            availability_text:
-              result.data.availability_text || "",
-            linkedin_url: result.data.linkedin_url || "",
-            github_url: result.data.github_url || "",
-            facebook_url: result.data.facebook_url || "",
-            copyright_text:
-              result.data.copyright_text || "",
-          });
-        }
+        setFormData(
+          normalizeSettings(result.data),
+        );
       } catch (error) {
         setHasError(true);
+
         setMessage(
           error instanceof Error
             ? error.message
@@ -84,7 +139,9 @@ export default function SettingsEditor() {
     loadSettings();
   }, []);
 
-  function updateField<K extends keyof SettingsData>(
+  function updateField<
+    K extends keyof SettingsData,
+  >(
     field: K,
     value: SettingsData[K],
   ) {
@@ -104,41 +161,45 @@ export default function SettingsEditor() {
     setHasError(false);
 
     try {
-      const response = await fetch("/api/settings", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        "/api/settings",
+        {
+          method: "PUT",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+
+          body: JSON.stringify(
+            formData,
+          ),
         },
-        body: JSON.stringify(formData),
-      });
+      );
 
-      const result = await response.json();
+      const result =
+        await response.json();
 
-      if (!response.ok || !result.success) {
+      if (
+        !response.ok ||
+        !result.success
+      ) {
         throw new Error(
-          result.message || "Unable to save settings.",
+          result.message ||
+            "Unable to save settings.",
         );
       }
 
-      setFormData({
-        site_title: result.data.site_title || "",
-        site_description:
-          result.data.site_description || "",
-        email: result.data.email || "",
-        phone: result.data.phone || "",
-        location: result.data.location || "",
-        availability_text:
-          result.data.availability_text || "",
-        linkedin_url: result.data.linkedin_url || "",
-        github_url: result.data.github_url || "",
-        facebook_url: result.data.facebook_url || "",
-        copyright_text:
-          result.data.copyright_text || "",
-      });
+      setFormData(
+        normalizeSettings(result.data),
+      );
 
-      setMessage("Settings saved successfully.");
+      setMessage(
+        "Settings saved successfully.",
+      );
     } catch (error) {
       setHasError(true);
+
       setMessage(
         error instanceof Error
           ? error.message
@@ -160,8 +221,11 @@ export default function SettingsEditor() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      <div className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8">
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-8"
+    >
+      <section className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8">
         <h2 className="text-2xl font-bold">
           Website Information.
         </h2>
@@ -177,10 +241,19 @@ export default function SettingsEditor() {
               required
               value={formData.site_title}
               onChange={(event) =>
-                updateField("site_title", event.target.value)
+                updateField(
+                  "site_title",
+                  event.target.value,
+                )
               }
-              className="w-full rounded-2xl border border-white/10 bg-black/20 px-5 py-4 outline-none focus:border-blue-400/50"
+              placeholder="Mubarok Hossain"
+              className="w-full rounded-2xl border border-white/10 bg-black/20 px-5 py-4 outline-none placeholder:text-slate-600 focus:border-blue-400/50"
             />
+
+            <p className="mt-2 text-xs text-slate-500">
+              This title appears in the
+              navbar and browser metadata.
+            </p>
           </div>
 
           <div>
@@ -193,7 +266,10 @@ export default function SettingsEditor() {
               required
               value={formData.location}
               onChange={(event) =>
-                updateField("location", event.target.value)
+                updateField(
+                  "location",
+                  event.target.value,
+                )
               }
               className="w-full rounded-2xl border border-white/10 bg-black/20 px-5 py-4 outline-none focus:border-blue-400/50"
             />
@@ -207,7 +283,9 @@ export default function SettingsEditor() {
             <textarea
               rows={4}
               required
-              value={formData.site_description}
+              value={
+                formData.site_description
+              }
               onChange={(event) =>
                 updateField(
                   "site_description",
@@ -226,7 +304,9 @@ export default function SettingsEditor() {
             <input
               type="text"
               required
-              value={formData.availability_text}
+              value={
+                formData.availability_text
+              }
               onChange={(event) =>
                 updateField(
                   "availability_text",
@@ -237,9 +317,54 @@ export default function SettingsEditor() {
             />
           </div>
         </div>
-      </div>
+      </section>
 
-      <div className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8">
+      <section className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8">
+        <h2 className="text-2xl font-bold">
+          Branding Images.
+        </h2>
+
+        <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
+          Upload square images for the
+          best appearance. A 512 by 512
+          pixel PNG, JPG, or WebP image
+          is recommended.
+        </p>
+
+        <div className="mt-8 grid gap-8 xl:grid-cols-2">
+          <FileUploadField
+            label="Navbar Profile Image"
+            folder="settings/navbar"
+            value={
+              formData.navbar_image_url
+            }
+            accept="image/jpeg,image/png,image/webp"
+            helperText="This image appears beside your name in the navbar"
+            onChange={(url) =>
+              updateField(
+                "navbar_image_url",
+                url,
+              )
+            }
+          />
+
+          <FileUploadField
+            label="Browser Favicon"
+            folder="settings/favicon"
+            value={formData.favicon_url}
+            accept="image/jpeg,image/png,image/webp"
+            helperText="Use a simple square image because browser tab icons are very small"
+            onChange={(url) =>
+              updateField(
+                "favicon_url",
+                url,
+              )
+            }
+          />
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8">
         <h2 className="text-2xl font-bold">
           Contact Details.
         </h2>
@@ -254,7 +379,10 @@ export default function SettingsEditor() {
               type="email"
               value={formData.email}
               onChange={(event) =>
-                updateField("email", event.target.value)
+                updateField(
+                  "email",
+                  event.target.value,
+                )
               }
               placeholder="your@email.com"
               className="w-full rounded-2xl border border-white/10 bg-black/20 px-5 py-4 outline-none placeholder:text-slate-600 focus:border-blue-400/50"
@@ -270,16 +398,19 @@ export default function SettingsEditor() {
               type="text"
               value={formData.phone}
               onChange={(event) =>
-                updateField("phone", event.target.value)
+                updateField(
+                  "phone",
+                  event.target.value,
+                )
               }
               placeholder="+880..."
               className="w-full rounded-2xl border border-white/10 bg-black/20 px-5 py-4 outline-none placeholder:text-slate-600 focus:border-blue-400/50"
             />
           </div>
         </div>
-      </div>
+      </section>
 
-      <div className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8">
+      <section className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8">
         <h2 className="text-2xl font-bold">
           Social Links.
         </h2>
@@ -292,7 +423,9 @@ export default function SettingsEditor() {
 
             <input
               type="url"
-              value={formData.linkedin_url}
+              value={
+                formData.linkedin_url
+              }
               onChange={(event) =>
                 updateField(
                   "linkedin_url",
@@ -330,7 +463,9 @@ export default function SettingsEditor() {
 
             <input
               type="url"
-              value={formData.facebook_url}
+              value={
+                formData.facebook_url
+              }
               onChange={(event) =>
                 updateField(
                   "facebook_url",
@@ -342,9 +477,9 @@ export default function SettingsEditor() {
             />
           </div>
         </div>
-      </div>
+      </section>
 
-      <div className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8">
+      <section className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8">
         <h2 className="text-2xl font-bold">
           Footer.
         </h2>
@@ -357,7 +492,9 @@ export default function SettingsEditor() {
           <input
             type="text"
             required
-            value={formData.copyright_text}
+            value={
+              formData.copyright_text
+            }
             onChange={(event) =>
               updateField(
                 "copyright_text",
@@ -367,7 +504,7 @@ export default function SettingsEditor() {
             className="w-full rounded-2xl border border-white/10 bg-black/20 px-5 py-4 outline-none focus:border-blue-400/50"
           />
         </div>
-      </div>
+      </section>
 
       {message && (
         <p
@@ -386,7 +523,9 @@ export default function SettingsEditor() {
         disabled={isSaving}
         className="premium-button inline-flex w-full items-center justify-center rounded-2xl px-7 py-4 font-semibold disabled:cursor-not-allowed disabled:opacity-60 md:w-auto"
       >
-        {isSaving ? "Saving..." : "Save Settings"}
+        {isSaving
+          ? "Saving..."
+          : "Save Settings"}
       </button>
     </form>
   );

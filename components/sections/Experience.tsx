@@ -96,14 +96,15 @@ export default function Experience() {
         if (
           response.ok &&
           result.success &&
-          Array.isArray(result.data) &&
-          result.data.length > 0
+          Array.isArray(result.data)
         ) {
-          setExperiences(
-            result.data.filter(
-              (item: ExperienceItem) => item.is_active,
-            ),
+          const activeItems = result.data.filter(
+            (item: ExperienceItem) => item.is_active,
           );
+
+          if (activeItems.length > 0) {
+            setExperiences(activeItems);
+          }
         }
       } catch {
         setExperiences(defaultExperience);
@@ -116,7 +117,7 @@ export default function Experience() {
   return (
     <section
       id="experience"
-      className="experience-section section-atmosphere relative overflow-hidden px-6 py-28 text-white"
+      className="experience-section section-atmosphere relative overflow-hidden px-5 py-24 text-white sm:px-6 md:py-28"
     >
       <div className="mx-auto max-w-7xl">
         <SectionHeading
@@ -126,7 +127,7 @@ export default function Experience() {
           description="My experience combines international sales, client communication, consultation, and digital business development."
         />
 
-        <div className="mx-auto mt-16 max-w-5xl space-y-6">
+        <div className="mx-auto mt-14 max-w-5xl space-y-6 md:mt-16">
           {experiences.map((experience, index) => {
             const Icon =
               iconMap[experience.icon] || FiBriefcase;
@@ -134,31 +135,31 @@ export default function Experience() {
             return (
               <Reveal
                 key={experience.id}
-                delay={index * 140}
-                direction={index % 2 === 0 ? "left" : "right"}
+                delay={index * 100}
+                direction="up"
               >
-                <article className="premium-card animated-card relative overflow-hidden rounded-3xl p-7 md:p-10">
+                <article className="premium-card animated-card relative overflow-hidden rounded-3xl p-6 sm:p-7 md:p-8 lg:p-9">
                   <div className="pointer-events-none absolute right-0 top-0 h-44 w-44 rounded-full bg-amber-400/5 blur-3xl" />
 
-                  <div className="grid gap-8 md:grid-cols-[150px_1fr]">
+                  <div className="grid gap-7 md:grid-cols-[145px_1fr] md:gap-8">
                     <div>
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-300/20 bg-amber-400/10 text-amber-200 shadow-[0_0_28px_rgba(251,191,36,0.14)]">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-300/20 bg-amber-400/10 text-amber-200">
                         <Icon className="h-5 w-5" />
                       </div>
 
-                      <p className="accent-text mt-6 text-sm font-bold uppercase tracking-[0.16em]">
+                      <p className="accent-text mt-5 text-sm font-bold uppercase tracking-[0.14em]">
                         {experience.period}.
                       </p>
 
-                      <p className="mt-4 text-5xl font-bold text-white/[0.08]">
+                      <p className="mt-3 text-4xl font-bold text-white/[0.08]">
                         {String(index + 1).padStart(2, "0")}.
                       </p>
                     </div>
 
-                    <div>
-                      <div className="flex flex-wrap items-start justify-between gap-4">
-                        <div>
-                          <h3 className="text-2xl font-bold text-white md:text-3xl">
+                    <div className="min-w-0">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <h3 className="break-words text-2xl font-bold text-white md:text-3xl">
                             {experience.role}.
                           </h3>
 
@@ -167,22 +168,22 @@ export default function Experience() {
                           </p>
                         </div>
 
-                        <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-400">
+                        <span className="w-fit shrink-0 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-400">
                           Professional role.
                         </span>
                       </div>
 
-                      <p className="mt-6 max-w-3xl leading-8 text-slate-400">
+                      <p className="mt-5 max-w-3xl leading-8 text-slate-400">
                         {experience.description}
                       </p>
 
-                      <div className="mt-7 flex flex-wrap gap-3">
+                      <div className="mt-6 flex flex-wrap gap-3">
                         {(experience.skills || []).map((skill) => (
                           <span
                             key={skill}
                             className="accent-border accent-background inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm text-slate-300"
                           >
-                            <FiCheckCircle className="h-4 w-4" />
+                            <FiCheckCircle className="h-4 w-4 shrink-0" />
                             {skill}.
                           </span>
                         ))}
