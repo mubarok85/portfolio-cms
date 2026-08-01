@@ -23,7 +23,12 @@ type ChatMessage = {
   text: string;
 };
 
+type ChatbotSettings = {
+  navbar_image_url?: string | null;
+};
+
 const WHATSAPP_NUMBER = "8801881527885";
+const FALLBACK_IMAGE = "/profile.webp";
 
 const QUICK_QUESTIONS = [
   {
@@ -91,6 +96,12 @@ export default function WhatsAppChatbot() {
   const [showScrollButton, setShowScrollButton] =
     useState(false);
 
+  const [profileImage, setProfileImage] =
+    useState(FALLBACK_IMAGE);
+
+  const [imageFailed, setImageFailed] =
+    useState(false);
+
   const scrollAreaRef =
     useRef<HTMLDivElement>(null);
 
@@ -98,6 +109,41 @@ export default function WhatsAppChatbot() {
     useRef<ReturnType<typeof setTimeout> | null>(
       null,
     );
+
+  useEffect(() => {
+    async function loadChatbotImage() {
+      try {
+        const response = await fetch(
+          "/api/settings",
+          {
+            cache: "no-store",
+          },
+        );
+
+        const result = await response.json();
+
+        if (
+          response.ok &&
+          result.success &&
+          result.data
+        ) {
+          const settings =
+            result.data as ChatbotSettings;
+
+          setProfileImage(
+            settings.navbar_image_url?.trim() ||
+              FALLBACK_IMAGE,
+          );
+
+          setImageFailed(false);
+        }
+      } catch {
+        setProfileImage(FALLBACK_IMAGE);
+      }
+    }
+
+    loadChatbotImage();
+  }, []);
 
   function updateScrollButton() {
     const container = scrollAreaRef.current;
@@ -111,7 +157,9 @@ export default function WhatsAppChatbot() {
       container.scrollTop -
       container.clientHeight;
 
-    setShowScrollButton(distanceFromBottom > 80);
+    setShowScrollButton(
+      distanceFromBottom > 80,
+    );
   }
 
   function scrollToBottom(
@@ -138,7 +186,9 @@ export default function WhatsAppChatbot() {
   useEffect(() => {
     return () => {
       if (responseTimerRef.current) {
-        clearTimeout(responseTimerRef.current);
+        clearTimeout(
+          responseTimerRef.current,
+        );
       }
     };
   }, []);
@@ -152,7 +202,8 @@ export default function WhatsAppChatbot() {
       document.body.style.overflow;
 
     if (window.innerWidth < 640) {
-      document.body.style.overflow = "hidden";
+      document.body.style.overflow =
+        "hidden";
     }
 
     window.requestAnimationFrame(() => {
@@ -186,25 +237,32 @@ export default function WhatsAppChatbot() {
     setIsTyping(true);
 
     if (responseTimerRef.current) {
-      clearTimeout(responseTimerRef.current);
+      clearTimeout(
+        responseTimerRef.current,
+      );
     }
 
-    responseTimerRef.current = setTimeout(() => {
-      setMessages((current) => [
-        ...current,
-        {
-          id: createMessageId(),
-          sender: "assistant",
-          text:
-            "Thank you for your interest. Continue on WhatsApp and share your requirements, preferred timeline, estimated budget, or any questions you have.",
-        },
-      ]);
+    responseTimerRef.current = setTimeout(
+      () => {
+        setMessages((current) => [
+          ...current,
+          {
+            id: createMessageId(),
+            sender: "assistant",
+            text:
+              "Thank you for your interest. Continue on WhatsApp and share your requirements, preferred timeline, estimated budget, or any questions you have.",
+          },
+        ]);
 
-      setIsTyping(false);
-    }, 550);
+        setIsTyping(false);
+      },
+      550,
+    );
   }
 
-  function handleQuickQuestion(question: string) {
+  function handleQuickQuestion(
+    question: string,
+  ) {
     if (isTyping) {
       return;
     }
@@ -215,7 +273,9 @@ export default function WhatsAppChatbot() {
     addAssistantResponse();
   }
 
-  function createWhatsAppUrl(message: string) {
+  function createWhatsAppUrl(
+    message: string,
+  ) {
     const formattedMessage = [
       "Hello Mubarok Hossain,",
       "",
@@ -228,7 +288,9 @@ export default function WhatsAppChatbot() {
 
     return (
       `https://wa.me/${WHATSAPP_NUMBER}` +
-      `?text=${encodeURIComponent(formattedMessage)}`
+      `?text=${encodeURIComponent(
+        formattedMessage,
+      )}`
     );
   }
 
@@ -274,7 +336,9 @@ export default function WhatsAppChatbot() {
   }
 
   function continueOnWhatsApp() {
-    const latestVisitorMessage = [...messages]
+    const latestVisitorMessage = [
+      ...messages,
+    ]
       .reverse()
       .find(
         (message) =>
@@ -307,6 +371,16 @@ export default function WhatsAppChatbot() {
     });
   }
 
+  function handleImageError() {
+    if (profileImage !== FALLBACK_IMAGE) {
+      setProfileImage(FALLBACK_IMAGE);
+      setImageFailed(false);
+      return;
+    }
+
+    setImageFailed(true);
+  }
+
   return (
     <>
       <div
@@ -328,10 +402,21 @@ export default function WhatsAppChatbot() {
 
             <div className="relative grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
               <div className="flex min-w-0 items-center gap-3">
-                <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/25 bg-gradient-to-br from-cyan-400/20 via-blue-500/15 to-violet-500/20 shadow-[0_0_28px_rgba(34,211,238,0.18)] sm:h-14 sm:w-14">
-                  <span className="bg-gradient-to-r from-cyan-200 to-violet-200 bg-clip-text text-sm font-extrabold text-transparent sm:text-lg">
-                    MH.
-                  </span>
+                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-2xl border border-cyan-300/25 bg-gradient-to-br from-cyan-400/20 via-blue-500/15 to-violet-500/20 shadow-[0_0_28px_rgba(34,211,238,0.18)] sm:h-14 sm:w-14">
+                  {!imageFailed ? (
+                    <img
+                      src={profileImage}
+                      alt="Mubarok Hossain"
+                      onError={handleImageError}
+                      className="h-full w-full object-cover object-center"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-sm font-extrabold text-cyan-200">
+                      MH.
+                    </div>
+                  )}
+
+                  <span className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10" />
 
                   <span className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-[#060a16] bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.8)]" />
                 </div>
@@ -364,7 +449,9 @@ export default function WhatsAppChatbot() {
 
                 <button
                   type="button"
-                  onClick={() => setIsOpen(false)}
+                  onClick={() =>
+                    setIsOpen(false)
+                  }
                   aria-label="Close chatbot"
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-slate-400 transition hover:border-violet-300/30 hover:bg-violet-400/10 hover:text-white"
                 >
@@ -386,14 +473,16 @@ export default function WhatsAppChatbot() {
                   <div
                     key={message.id}
                     className={`flex min-w-0 ${
-                      message.sender === "visitor"
+                      message.sender ===
+                      "visitor"
                         ? "justify-end"
                         : "justify-start"
                     }`}
                   >
                     <div
                       className={`relative max-w-[88%] overflow-hidden break-words rounded-2xl px-4 py-3 text-sm leading-6 shadow-lg ${
-                        message.sender === "visitor"
+                        message.sender ===
+                        "visitor"
                           ? "rounded-br-md border border-violet-300/15 bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 text-white shadow-[0_12px_35px_rgba(99,102,241,0.24)]"
                           : "rounded-bl-md border border-cyan-300/10 bg-gradient-to-br from-white/[0.08] via-blue-400/[0.04] to-violet-400/[0.06] text-slate-300"
                       }`}
@@ -450,7 +539,9 @@ export default function WhatsAppChatbot() {
                     {QUICK_QUESTIONS.map(
                       (question) => (
                         <button
-                          key={question.message}
+                          key={
+                            question.message
+                          }
                           type="button"
                           disabled={isTyping}
                           onClick={() =>
@@ -462,11 +553,15 @@ export default function WhatsAppChatbot() {
                         >
                           <div className="min-w-0">
                             <p className="font-semibold text-slate-200">
-                              {question.title}
+                              {
+                                question.title
+                              }
                             </p>
 
                             <p className="mt-1 truncate text-xs text-slate-500">
-                              {question.description}
+                              {
+                                question.description
+                              }
                             </p>
                           </div>
 
@@ -485,7 +580,9 @@ export default function WhatsAppChatbot() {
 
             <button
               type="button"
-              onClick={() => scrollToBottom()}
+              onClick={() =>
+                scrollToBottom()
+              }
               aria-label="Scroll to latest message"
               className={`absolute bottom-4 right-4 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-cyan-300/20 bg-gradient-to-br from-cyan-400 to-violet-500 text-white shadow-[0_12px_35px_rgba(99,102,241,0.35)] transition duration-200 hover:-translate-y-1 ${
                 showScrollButton
@@ -508,11 +605,14 @@ export default function WhatsAppChatbot() {
                 rows={1}
                 value={inputValue}
                 onChange={(event) =>
-                  setInputValue(event.target.value)
+                  setInputValue(
+                    event.target.value,
+                  )
                 }
                 onFocus={() =>
-                  window.requestAnimationFrame(() =>
-                    scrollToBottom(),
+                  window.requestAnimationFrame(
+                    () =>
+                      scrollToBottom(),
                   )
                 }
                 placeholder="Ask Mubarok anything."
@@ -521,7 +621,9 @@ export default function WhatsAppChatbot() {
 
               <button
                 type="submit"
-                disabled={!inputValue.trim()}
+                disabled={
+                  !inputValue.trim()
+                }
                 aria-label="Send message on WhatsApp"
                 className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 via-cyan-400 to-blue-500 text-slate-950 shadow-[0_14px_38px_rgba(34,211,238,0.24)] transition hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(34,211,238,0.34)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
               >
@@ -551,7 +653,9 @@ export default function WhatsAppChatbot() {
       <button
         type="button"
         onClick={() =>
-          setIsOpen((current) => !current)
+          setIsOpen(
+            (current) => !current,
+          )
         }
         aria-label={
           isOpen
