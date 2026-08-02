@@ -1,32 +1,42 @@
+import styles from "./Background.module.css";
+
+const particles = [
+  styles.particleOne,
+  styles.particleTwo,
+  styles.particleThree,
+];
+
 export default function Background() {
   return (
     <div
       aria-hidden="true"
-      className="premium-background"
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: -1,
-        overflow: "hidden",
-        pointerEvents: "none",
-      }}
+      className={styles.background}
     >
-      <div className="background-base" />
+      <div className={styles.base} />
 
-      <div className="aurora aurora-one" />
-      <div className="aurora aurora-two" />
-      <div className="aurora aurora-three" />
+      <div
+        className={`${styles.aurora} ${styles.auroraOne}`}
+      />
 
-      <div className="background-grid" />
-      <div className="background-vignette" />
-      <div className="background-noise" />
+      <div
+        className={`${styles.aurora} ${styles.auroraTwo}`}
+      />
 
-      <div className="particle particle-one" />
-      <div className="particle particle-two" />
-      <div className="particle particle-three" />
-      <div className="particle particle-four" />
-      <div className="particle particle-five" />
-      <div className="particle particle-six" />
+      <div className={styles.grid} />
+
+      <div className={styles.stars} />
+
+      <div className={styles.vignette} />
+
+      {particles.map((particleClass, index) => (
+        <span
+          key={particleClass}
+          className={`${styles.particle} ${particleClass}`}
+          style={{
+            animationDelay: `${index * 1.8}s`,
+          }}
+        />
+      ))}
     </div>
   );
 }
