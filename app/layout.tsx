@@ -6,6 +6,7 @@ import {
 import Background from "./components/Background";
 import SmoothScroll from "../components/SmoothScroll";
 import WhatsAppChatbot from "../components/WhatsAppChatbot";
+import SnakeCursor from "../components/SnakeCursor";
 import { createClient } from "../lib/supabase/server";
 import "./globals.css";
 
@@ -128,6 +129,8 @@ export default function RootLayout({
         </SmoothScroll>
 
         <WhatsAppChatbot />
+
+        <SnakeCursor />
       </body>
     </html>
   );
