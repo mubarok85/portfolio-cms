@@ -32,40 +32,32 @@ const orbitItems = [
   {
     icon: FiTrendingUp,
     label: "Sales Growth",
-    desktopPosition:
-      "left-[14%] top-[9%]",
-    mobilePosition:
-      "left-[8%] top-[15%]",
+    position:
+      "left-[8%] top-[15%] sm:left-[14%] sm:top-[9%]",
     color: "text-blue-200",
     delay: 0,
   },
   {
     icon: FiMessageCircle,
     label: "Client Communication",
-    desktopPosition:
-      "right-[9%] top-[29%]",
-    mobilePosition:
-      "right-[6%] top-[31%]",
+    position:
+      "right-[6%] top-[31%] sm:right-[9%] sm:top-[29%]",
     color: "text-violet-200",
     delay: 0.6,
   },
   {
     icon: FiGlobe,
     label: "Global Reach",
-    desktopPosition:
-      "bottom-[24%] left-[11%]",
-    mobilePosition:
-      "bottom-[31%] left-[7%]",
+    position:
+      "bottom-[31%] left-[7%] sm:bottom-[24%] sm:left-[11%]",
     color: "text-cyan-200",
     delay: 1.2,
   },
   {
     icon: FiBarChart2,
     label: "Business Strategy",
-    desktopPosition:
-      "bottom-[17%] right-[17%]",
-    mobilePosition:
-      "bottom-[25%] right-[9%]",
+    position:
+      "bottom-[25%] right-[9%] sm:bottom-[17%] sm:right-[17%]",
     color: "text-indigo-200",
     delay: 1.8,
   },
@@ -179,10 +171,6 @@ export default function HeroCard({
     }
   }
 
-  const isRemoteImage =
-    resolvedImageUrl.startsWith("http://") ||
-    resolvedImageUrl.startsWith("https://");
-
   return (
     <div
       ref={containerRef}
@@ -251,7 +239,7 @@ export default function HeroCard({
               },
             }}
             aria-label={item.label}
-            className={`absolute z-30 flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-[#0b1225]/95 shadow-[0_14px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:h-12 sm:w-12 ${item.color} ${item.mobilePosition} sm:${item.desktopPosition}`}
+            className={`absolute z-30 flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-[#0b1225]/95 shadow-[0_14px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:h-12 sm:w-12 ${item.color} ${item.position}`}
           >
             <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
           </motion.div>
@@ -297,9 +285,9 @@ export default function HeroCard({
             alt="Mobarok Hossain"
             fill
             priority
-            unoptimized={isRemoteImage}
+            fetchPriority="high"
             onError={handleImageError}
-            sizes="(max-width: 640px) 226px, 326px"
+            sizes="(max-width: 640px) 226px, (max-width: 1024px) 326px, 326px"
             className="object-cover object-[center_24%]"
           />
 

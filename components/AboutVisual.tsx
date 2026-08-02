@@ -59,10 +59,6 @@ export default function AboutVisual({
     }
   }
 
-  const isRemoteImage =
-    resolvedImageUrl.startsWith("http://") ||
-    resolvedImageUrl.startsWith("https://");
-
   return (
     <div className="relative mx-auto w-full max-w-[520px]">
       <div className="pointer-events-none absolute left-1/2 top-1/2 h-[440px] w-[440px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-500/10 blur-[120px]" />
@@ -94,10 +90,8 @@ export default function AboutVisual({
             src={resolvedImageUrl}
             alt="Mobarok Hossain"
             fill
-            priority={false}
-            unoptimized={isRemoteImage}
             onError={handleImageError}
-            sizes="(max-width: 768px) 100vw, 520px"
+            sizes="(max-width: 640px) calc(100vw - 40px), (max-width: 1024px) 520px, 520px"
             className="object-cover object-[center_24%]"
           />
 
