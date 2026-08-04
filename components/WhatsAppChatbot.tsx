@@ -2,6 +2,7 @@
 
 import {
   FormEvent,
+  KeyboardEvent,
   WheelEvent,
   useEffect,
   useRef,
@@ -12,6 +13,7 @@ import {
   FiArrowRight,
   FiCheck,
   FiMessageCircle,
+  FiRefreshCw,
   FiSend,
   FiStar,
   FiX,
@@ -27,52 +29,80 @@ type ChatbotSettings = {
   navbar_image_url?: string | null;
 };
 
-const WHATSAPP_NUMBER = "8801881527885";
-const FALLBACK_IMAGE = "/profile.webp";
+type AssistantApiResponse = {
+  success?: boolean;
+  message?: string;
+};
+
+const WHATSAPP_NUMBER =
+  "8801881527885";
+
+const FALLBACK_IMAGE =
+  "/profile.webp";
+
+const SESSION_STORAGE_KEY =
+  "portfolio-assistant-session";
+
+const CHAT_STORAGE_KEY =
+  "portfolio-assistant-messages";
+
+const MAX_STORED_MESSAGES = 20;
 
 const QUICK_QUESTIONS = [
   {
-    title: "Hire me.",
-    description: "Discuss sales or business support.",
-    message: "I want to hire you.",
+    title: "Hire Mubarok.",
+    description:
+      "Discuss sales or business support.",
+    message:
+      "I want to hire Mubarok. Can you help me get started?",
     accent:
       "from-blue-500/20 via-indigo-500/10 to-transparent",
     iconColor: "text-blue-300",
   },
   {
-    title: "Request a quotation.",
-    description: "Share a project and receive guidance.",
-    message: "I need a project quotation.",
+    title:
+      "Request a quotation.",
+    description:
+      "Discuss your project requirements.",
+    message:
+      "I need a project quotation. What information should I provide?",
     accent:
       "from-violet-500/20 via-fuchsia-500/10 to-transparent",
     iconColor: "text-violet-300",
   },
   {
     title: "Website project.",
-    description: "Discuss a business website or platform.",
-    message: "I want to discuss a website project.",
+    description:
+      "Discuss a website or online platform.",
+    message:
+      "I want to discuss a website project.",
     accent:
       "from-cyan-500/20 via-blue-500/10 to-transparent",
     iconColor: "text-cyan-300",
   },
   {
-    title: "Mobile application.",
-    description: "Plan an application and its requirements.",
-    message: "I want to discuss a mobile application.",
+    title:
+      "Ask a general question.",
+    description:
+      "Use the assistant like a regular chatbot.",
+    message:
+      "What can you help me with?",
     accent:
       "from-emerald-500/20 via-teal-500/10 to-transparent",
-    iconColor: "text-emerald-300",
+    iconColor:
+      "text-emerald-300",
   },
 ];
 
-const INITIAL_MESSAGES: ChatMessage[] = [
-  {
-    id: "welcome-message",
-    sender: "assistant",
-    text:
-      "Hi, I am Mubarok Hossain. I can help you with international sales, business development, websites, mobile applications, project planning, and client communication.",
-  },
-];
+const INITIAL_MESSAGES: ChatMessage[] =
+  [
+    {
+      id: "welcome-message",
+      sender: "assistant",
+      text:
+        "Hi, I am Mubarok Hossain's AI assistant. You can ask me general questions, learn about Mubarok's portfolio, discuss a project, or continue directly on WhatsApp.",
+    },
+  ];
 
 function createMessageId() {
   return `${Date.now()}-${Math.random()
@@ -80,35 +110,128 @@ function createMessageId() {
     .slice(2)}`;
 }
 
+function createSessionId() {
+  return `session-${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2, 12)}`;
+}
+
 export default function WhatsAppChatbot() {
-  const [isOpen, setIsOpen] = useState(false);
-
-  const [messages, setMessages] =
-    useState<ChatMessage[]>(INITIAL_MESSAGES);
-
-  const [inputValue, setInputValue] = useState("");
-
-  const [isTyping, setIsTyping] = useState(false);
-
-  const [showQuestions, setShowQuestions] =
-    useState(true);
-
-  const [showScrollButton, setShowScrollButton] =
+  const [isOpen, setIsOpen] =
     useState(false);
 
-  const [profileImage, setProfileImage] =
-    useState(FALLBACK_IMAGE);
+  const [messages, setMessages] =
+    useState<ChatMessage[]>(
+      INITIAL_MESSAGES,
+    );
+
+  const [inputValue, setInputValue] =
+    useState("");
+
+  const [isTyping, setIsTyping] =
+    useState(false);
+
+  const [
+    showQuestions,
+    setShowQuestions,
+  ] = useState(true);
+
+  const [
+    showScrollButton,
+    setShowScrollButton,
+  ] = useState(false);
+
+  const [
+    profileImage,
+    setProfileImage,
+  ] = useState(FALLBACK_IMAGE);
 
   const [imageFailed, setImageFailed] =
     useState(false);
 
+  const [sessionId, setSessionId] =
+    useState("");
+
+  const [errorMessage, setErrorMessage] =
+    useState("");
+
   const scrollAreaRef =
     useRef<HTMLDivElement>(null);
 
-  const responseTimerRef =
-    useRef<ReturnType<typeof setTimeout> | null>(
+  const requestControllerRef =
+    useRef<AbortController | null>(
       null,
     );
+
+  useEffect(() => {
+    const storedSession =
+      window.localStorage.getItem(
+        SESSION_STORAGE_KEY,
+      );
+
+    const currentSession =
+      storedSession ||
+      createSessionId();
+
+    if (!storedSession) {
+      window.localStorage.setItem(
+        SESSION_STORAGE_KEY,
+        currentSession,
+      );
+    }
+
+    setSessionId(currentSession);
+
+    try {
+      const storedMessages =
+        window.localStorage.getItem(
+          CHAT_STORAGE_KEY,
+        );
+
+      if (storedMessages) {
+        const parsedMessages =
+          JSON.parse(
+            storedMessages,
+          ) as ChatMessage[];
+
+        if (
+          Array.isArray(
+            parsedMessages,
+          ) &&
+          parsedMessages.length > 0
+        ) {
+          setMessages(
+            parsedMessages.slice(
+              -MAX_STORED_MESSAGES,
+            ),
+          );
+
+          setShowQuestions(false);
+        }
+      }
+    } catch {
+      window.localStorage.removeItem(
+        CHAT_STORAGE_KEY,
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    if (
+      messages.length === 0
+    ) {
+      return;
+    }
+
+    window.localStorage.setItem(
+      CHAT_STORAGE_KEY,
+      JSON.stringify(
+        messages.slice(
+          -MAX_STORED_MESSAGES,
+        ),
+      ),
+    );
+  }, [messages]);
 
   useEffect(() => {
     async function loadChatbotImage() {
@@ -120,7 +243,8 @@ export default function WhatsAppChatbot() {
           },
         );
 
-        const result = await response.json();
+        const result =
+          await response.json();
 
         if (
           response.ok &&
@@ -138,15 +262,57 @@ export default function WhatsAppChatbot() {
           setImageFailed(false);
         }
       } catch {
-        setProfileImage(FALLBACK_IMAGE);
+        setProfileImage(
+          FALLBACK_IMAGE,
+        );
       }
     }
 
     loadChatbotImage();
   }, []);
 
+  useEffect(() => {
+    return () => {
+      requestControllerRef.current?.abort();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const previousOverflow =
+      document.body.style.overflow;
+
+    if (window.innerWidth < 640) {
+      document.body.style.overflow =
+        "hidden";
+    }
+
+    window.requestAnimationFrame(
+      () => {
+        scrollToBottom("auto");
+      },
+    );
+
+    return () => {
+      document.body.style.overflow =
+        previousOverflow;
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    window.requestAnimationFrame(
+      () => {
+        scrollToBottom("smooth");
+      },
+    );
+  }, [messages, isTyping]);
+
   function updateScrollButton() {
-    const container = scrollAreaRef.current;
+    const container =
+      scrollAreaRef.current;
 
     if (!container) {
       return;
@@ -165,7 +331,8 @@ export default function WhatsAppChatbot() {
   function scrollToBottom(
     behavior: ScrollBehavior = "smooth",
   ) {
-    const container = scrollAreaRef.current;
+    const container =
+      scrollAreaRef.current;
 
     if (!container) {
       return;
@@ -177,100 +344,202 @@ export default function WhatsAppChatbot() {
     });
   }
 
-  useEffect(() => {
-    window.requestAnimationFrame(() => {
-      scrollToBottom("smooth");
-    });
-  }, [messages, isTyping]);
+  async function sendMessage(
+    rawMessage: string,
+  ) {
+    const cleanMessage =
+      rawMessage.trim();
 
-  useEffect(() => {
-    return () => {
-      if (responseTimerRef.current) {
-        clearTimeout(
-          responseTimerRef.current,
-        );
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isOpen) {
+    if (
+      !cleanMessage ||
+      isTyping
+    ) {
       return;
     }
 
-    const previousOverflow =
-      document.body.style.overflow;
+    setErrorMessage("");
+    setShowQuestions(false);
 
-    if (window.innerWidth < 640) {
-      document.body.style.overflow =
-        "hidden";
-    }
-
-    window.requestAnimationFrame(() => {
-      scrollToBottom("auto");
-    });
-
-    return () => {
-      document.body.style.overflow =
-        previousOverflow;
-    };
-  }, [isOpen]);
-
-  function addVisitorMessage(text: string) {
-    const cleanText = text.trim();
-
-    if (!cleanText) {
-      return;
-    }
-
-    setMessages((current) => [
-      ...current,
+    const visitorMessage: ChatMessage =
       {
         id: createMessageId(),
         sender: "visitor",
-        text: cleanText,
-      },
-    ]);
-  }
+        text: cleanMessage,
+      };
 
-  function addAssistantResponse() {
+    const updatedMessages = [
+      ...messages,
+      visitorMessage,
+    ].slice(-MAX_STORED_MESSAGES);
+
+    setMessages(updatedMessages);
+    setInputValue("");
     setIsTyping(true);
 
-    if (responseTimerRef.current) {
-      clearTimeout(
-        responseTimerRef.current,
-      );
-    }
+    requestControllerRef.current?.abort();
 
-    responseTimerRef.current = setTimeout(
-      () => {
-        setMessages((current) => [
-          ...current,
-          {
-            id: createMessageId(),
-            sender: "assistant",
-            text:
-              "Thank you for your interest. Continue on WhatsApp and share your requirements, preferred timeline, estimated budget, or any questions you have.",
+    const controller =
+      new AbortController();
+
+    requestControllerRef.current =
+      controller;
+
+    try {
+      const response = await fetch(
+        "/api/assistant",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json",
           },
-        ]);
 
-        setIsTyping(false);
-      },
-      550,
-    );
+          body: JSON.stringify({
+            sessionId,
+
+            messages:
+              updatedMessages
+                .filter(
+                  (message) =>
+                    message.id !==
+                    "welcome-message",
+                )
+                .slice(-10)
+                .map((message) => ({
+                  role:
+                    message.sender ===
+                    "visitor"
+                      ? "user"
+                      : "assistant",
+
+                  content:
+                    message.text,
+                })),
+          }),
+
+          signal:
+            controller.signal,
+        },
+      );
+
+      const result =
+        (await response.json()) as AssistantApiResponse;
+
+      const assistantText =
+        result.message?.trim();
+
+      if (
+        !response.ok ||
+        !result.success ||
+        !assistantText
+      ) {
+        throw new Error(
+          assistantText ||
+            "The assistant could not respond.",
+        );
+      }
+
+      setMessages((current) => [
+        ...current,
+        {
+          id: createMessageId(),
+          sender: "assistant",
+          text: assistantText,
+        },
+      ]);
+    } catch (error) {
+      if (
+        error instanceof DOMException &&
+        error.name === "AbortError"
+      ) {
+        return;
+      }
+
+      const fallbackMessage =
+        error instanceof Error &&
+        error.message
+          ? error.message
+          : "I could not generate a response right now. Please try again or continue on WhatsApp.";
+
+      setErrorMessage(
+        fallbackMessage,
+      );
+
+      setMessages((current) => [
+        ...current,
+        {
+          id: createMessageId(),
+          sender: "assistant",
+          text:
+            "I am having trouble responding right now. You can try again or use the Continue on WhatsApp button.",
+        },
+      ]);
+    } finally {
+      setIsTyping(false);
+
+      if (
+        requestControllerRef.current ===
+        controller
+      ) {
+        requestControllerRef.current =
+          null;
+      }
+    }
+  }
+
+  function handleSubmit(
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+
+    void sendMessage(inputValue);
+  }
+
+  function handleTextareaKeyDown(
+    event: KeyboardEvent<HTMLTextAreaElement>,
+  ) {
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey
+    ) {
+      event.preventDefault();
+
+      void sendMessage(inputValue);
+    }
   }
 
   function handleQuickQuestion(
     question: string,
   ) {
-    if (isTyping) {
-      return;
-    }
+    void sendMessage(question);
+  }
 
-    addVisitorMessage(question);
-    setInputValue(question);
-    setShowQuestions(false);
-    addAssistantResponse();
+  function createWhatsAppSummary() {
+    const recentConversation =
+      messages
+        .filter(
+          (message) =>
+            message.id !==
+            "welcome-message",
+        )
+        .slice(-8)
+        .map((message) => {
+          const speaker =
+            message.sender ===
+            "visitor"
+              ? "Visitor"
+              : "Assistant";
+
+          return `${speaker}: ${message.text}`;
+        })
+        .join("\n\n");
+
+    return (
+      recentConversation ||
+      inputValue.trim() ||
+      "I would like to discuss a business opportunity."
+    );
   }
 
   function createWhatsAppUrl(
@@ -279,11 +548,13 @@ export default function WhatsAppChatbot() {
     const formattedMessage = [
       "Hello Mubarok Hossain,",
       "",
-      "I contacted you from your portfolio website.",
+      "I contacted you through your portfolio AI assistant.",
+      "",
+      "Conversation summary.",
       "",
       message.trim(),
       "",
-      "I would like to discuss this with you.",
+      "I would like to continue this discussion with you.",
     ].join("\n");
 
     return (
@@ -294,75 +565,49 @@ export default function WhatsAppChatbot() {
     );
   }
 
-  function openWhatsApp(message: string) {
-    const cleanMessage = message.trim();
-
-    if (!cleanMessage) {
-      return;
-    }
-
+  function continueOnWhatsApp() {
     window.open(
-      createWhatsAppUrl(cleanMessage),
+      createWhatsAppUrl(
+        createWhatsAppSummary(),
+      ),
       "_blank",
       "noopener,noreferrer",
     );
   }
 
-  function handleSubmit(
-    event: FormEvent<HTMLFormElement>,
-  ) {
-    event.preventDefault();
+  function clearConversation() {
+    requestControllerRef.current?.abort();
 
-    const message = inputValue.trim();
+    const newSession =
+      createSessionId();
 
-    if (!message) {
-      return;
-    }
+    window.localStorage.setItem(
+      SESSION_STORAGE_KEY,
+      newSession,
+    );
 
-    const duplicateMessage = [...messages]
-      .reverse()
-      .find(
-        (item) =>
-          item.sender === "visitor" &&
-          item.text === message,
-      );
+    window.localStorage.removeItem(
+      CHAT_STORAGE_KEY,
+    );
 
-    if (!duplicateMessage) {
-      addVisitorMessage(message);
-    }
-
-    openWhatsApp(message);
+    setSessionId(newSession);
+    setMessages(INITIAL_MESSAGES);
     setInputValue("");
-  }
-
-  function continueOnWhatsApp() {
-    const latestVisitorMessage = [
-      ...messages,
-    ]
-      .reverse()
-      .find(
-        (message) =>
-          message.sender === "visitor",
-      );
-
-    const message =
-      inputValue.trim() ||
-      latestVisitorMessage?.text ||
-      "I would like to discuss a business opportunity.";
-
-    openWhatsApp(message);
+    setIsTyping(false);
+    setErrorMessage("");
+    setShowQuestions(true);
   }
 
   function handleChatWheel(
     event: WheelEvent<HTMLDivElement>,
   ) {
-    const container = scrollAreaRef.current;
+    const container =
+      scrollAreaRef.current;
 
     if (!container) {
       return;
     }
 
-    event.preventDefault();
     event.stopPropagation();
 
     container.scrollBy({
@@ -372,9 +617,16 @@ export default function WhatsAppChatbot() {
   }
 
   function handleImageError() {
-    if (profileImage !== FALLBACK_IMAGE) {
-      setProfileImage(FALLBACK_IMAGE);
+    if (
+      profileImage !==
+      FALLBACK_IMAGE
+    ) {
+      setProfileImage(
+        FALLBACK_IMAGE,
+      );
+
       setImageFailed(false);
+
       return;
     }
 
@@ -395,19 +647,17 @@ export default function WhatsAppChatbot() {
 
           <div className="pointer-events-none absolute -right-20 top-20 h-56 w-56 rounded-full bg-violet-500/20 blur-[90px]" />
 
-          <div className="pointer-events-none absolute bottom-0 left-1/3 h-44 w-44 rounded-full bg-emerald-500/10 blur-[80px]" />
-
-          <header className="relative min-w-0 overflow-hidden border-b border-white/10 bg-gradient-to-r from-cyan-500/10 via-violet-500/10 to-fuchsia-500/10 px-4 py-4 sm:px-5 sm:py-5">
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/70 to-transparent" />
-
+          <header className="relative min-w-0 overflow-hidden border-b border-white/10 bg-gradient-to-r from-cyan-500/10 via-violet-500/10 to-fuchsia-500/10 px-4 py-4 sm:px-5">
             <div className="relative grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
               <div className="flex min-w-0 items-center gap-3">
-                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-2xl border border-cyan-300/25 bg-gradient-to-br from-cyan-400/20 via-blue-500/15 to-violet-500/20 shadow-[0_0_28px_rgba(34,211,238,0.18)] sm:h-14 sm:w-14">
+                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-2xl border border-cyan-300/25 bg-gradient-to-br from-cyan-400/20 via-blue-500/15 to-violet-500/20">
                   {!imageFailed ? (
                     <img
                       src={profileImage}
                       alt="Mubarok Hossain"
-                      onError={handleImageError}
+                      onError={
+                        handleImageError
+                      }
                       className="h-full w-full object-cover object-center"
                     />
                   ) : (
@@ -416,36 +666,35 @@ export default function WhatsAppChatbot() {
                     </div>
                   )}
 
-                  <span className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10" />
-
-                  <span className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-[#060a16] bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.8)]" />
+                  <span className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-[#060a16] bg-emerald-400" />
                 </div>
 
-                <div className="min-w-0 overflow-hidden">
+                <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="truncate text-base font-bold sm:text-lg">
-                      Mubarok Hossain.
+                      Mubarok AI.
                     </p>
 
                     <FiStar className="h-4 w-4 shrink-0 text-violet-300" />
                   </div>
 
                   <p className="mt-1 truncate text-[9px] uppercase tracking-[0.1em] text-slate-400 sm:text-[10px]">
-                    Sales and business consultant.
+                    General assistant and portfolio guide.
                   </p>
                 </div>
               </div>
 
               <div className="flex shrink-0 items-center gap-2">
-                <span className="hidden items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-2 text-[9px] font-bold uppercase tracking-[0.08em] text-emerald-200 min-[360px]:inline-flex">
-                  <span className="relative flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
-
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-                  </span>
-
-                  Live.
-                </span>
+                <button
+                  type="button"
+                  onClick={
+                    clearConversation
+                  }
+                  aria-label="Start a new conversation"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-slate-400 transition hover:text-white"
+                >
+                  <FiRefreshCw className="h-4 w-4" />
+                </button>
 
                 <button
                   type="button"
@@ -453,7 +702,7 @@ export default function WhatsAppChatbot() {
                     setIsOpen(false)
                   }
                   aria-label="Close chatbot"
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-slate-400 transition hover:border-violet-300/30 hover:bg-violet-400/10 hover:text-white"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-slate-400 transition hover:text-white"
                 >
                   <FiX className="h-5 w-5" />
                 </button>
@@ -464,41 +713,43 @@ export default function WhatsAppChatbot() {
           <div className="relative min-h-0 min-w-0">
             <div
               ref={scrollAreaRef}
-              onScroll={updateScrollButton}
-              onWheel={handleChatWheel}
-              className="h-full min-h-0 min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              onScroll={
+                updateScrollButton
+              }
+              onWheel={
+                handleChatWheel
+              }
+              className="h-full min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             >
-              <div className="min-w-0 space-y-4 px-4 py-5 sm:px-5">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex min-w-0 ${
-                      message.sender ===
-                      "visitor"
-                        ? "justify-end"
-                        : "justify-start"
-                    }`}
-                  >
+              <div className="space-y-4 px-4 py-5 sm:px-5">
+                {messages.map(
+                  (message) => (
                     <div
-                      className={`relative max-w-[88%] overflow-hidden break-words rounded-2xl px-4 py-3 text-sm leading-6 shadow-lg ${
+                      key={message.id}
+                      className={`flex ${
                         message.sender ===
                         "visitor"
-                          ? "rounded-br-md border border-violet-300/15 bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 text-white shadow-[0_12px_35px_rgba(99,102,241,0.24)]"
-                          : "rounded-bl-md border border-cyan-300/10 bg-gradient-to-br from-white/[0.08] via-blue-400/[0.04] to-violet-400/[0.06] text-slate-300"
+                          ? "justify-end"
+                          : "justify-start"
                       }`}
                     >
-                      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_10%,rgba(255,255,255,0.1),transparent_35%)]" />
-
-                      <span className="relative">
+                      <div
+                        className={`relative max-w-[88%] whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-sm leading-6 ${
+                          message.sender ===
+                          "visitor"
+                            ? "rounded-br-md bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 text-white"
+                            : "rounded-bl-md border border-white/10 bg-white/[0.06] text-slate-300"
+                        }`}
+                      >
                         {message.text}
-                      </span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ),
+                )}
 
                 {isTyping && (
                   <div className="flex justify-start">
-                    <div className="flex items-center gap-2 rounded-2xl rounded-bl-md border border-cyan-300/10 bg-gradient-to-r from-cyan-500/[0.07] to-violet-500/[0.07] px-4 py-4">
+                    <div className="flex items-center gap-2 rounded-2xl rounded-bl-md border border-white/10 bg-white/[0.06] px-4 py-4">
                       <span className="h-2 w-2 animate-bounce rounded-full bg-cyan-300 [animation-delay:-0.3s]" />
 
                       <span className="h-2 w-2 animate-bounce rounded-full bg-blue-300 [animation-delay:-0.15s]" />
@@ -507,35 +758,21 @@ export default function WhatsAppChatbot() {
                     </div>
                   </div>
                 )}
+
+                {errorMessage && (
+                  <p className="rounded-xl border border-rose-400/20 bg-rose-400/10 px-3 py-2 text-xs text-rose-200">
+                    {errorMessage}
+                  </p>
+                )}
               </div>
 
-              <div className="min-w-0 border-t border-white/10 px-4 py-5 sm:px-5">
-                <div className="flex min-w-0 items-center justify-between gap-3">
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-violet-300">
-                      Popular questions.
-                    </p>
+              {showQuestions && (
+                <div className="border-t border-white/10 px-4 py-5 sm:px-5">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-violet-300">
+                    Suggested questions.
+                  </p>
 
-                    <p className="mt-1 text-xs text-slate-600">
-                      Select an option to get started.
-                    </p>
-                  </div>
-
-                  {!showQuestions && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setShowQuestions(true)
-                      }
-                      className="shrink-0 rounded-full border border-violet-300/15 bg-violet-400/10 px-3 py-2 text-xs text-violet-200 transition hover:bg-violet-400/20"
-                    >
-                      Show all.
-                    </button>
-                  )}
-                </div>
-
-                {showQuestions && (
-                  <div className="mt-4 grid min-w-0 gap-2.5">
+                  <div className="mt-4 grid gap-2.5">
                     {QUICK_QUESTIONS.map(
                       (question) => (
                         <button
@@ -549,7 +786,7 @@ export default function WhatsAppChatbot() {
                               question.message,
                             )
                           }
-                          className={`group relative grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-r ${question.accent} px-4 py-3.5 text-left transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-50`}
+                          className={`group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-white/10 bg-gradient-to-r ${question.accent} px-4 py-3.5 text-left transition hover:-translate-y-0.5 disabled:opacity-50`}
                         >
                           <div className="min-w-0">
                             <p className="font-semibold text-slate-200">
@@ -565,17 +802,15 @@ export default function WhatsAppChatbot() {
                             </p>
                           </div>
 
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/20">
-                            <FiArrowRight
-                              className={`h-4 w-4 transition group-hover:translate-x-1 ${question.iconColor}`}
-                            />
-                          </div>
+                          <FiArrowRight
+                            className={`h-4 w-4 ${question.iconColor}`}
+                          />
                         </button>
                       ),
                     )}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
             <button
@@ -584,10 +819,10 @@ export default function WhatsAppChatbot() {
                 scrollToBottom()
               }
               aria-label="Scroll to latest message"
-              className={`absolute bottom-4 right-4 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-cyan-300/20 bg-gradient-to-br from-cyan-400 to-violet-500 text-white shadow-[0_12px_35px_rgba(99,102,241,0.35)] transition duration-200 hover:-translate-y-1 ${
+              className={`absolute bottom-4 right-4 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-cyan-400 to-violet-500 text-white transition ${
                 showScrollButton
-                  ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
-                  : "pointer-events-none translate-y-3 scale-90 opacity-0"
+                  ? "opacity-100"
+                  : "pointer-events-none opacity-0"
               }`}
             >
               <FiArrowDown className="h-5 w-5" />
@@ -596,36 +831,33 @@ export default function WhatsAppChatbot() {
 
           <form
             onSubmit={handleSubmit}
-            className="relative min-w-0 overflow-hidden border-t border-white/10 bg-gradient-to-b from-[#080d1b] to-[#060a16] p-4"
+            className="relative border-t border-white/10 bg-[#060a16] p-4"
           >
-            <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-violet-300/35 to-transparent" />
-
-            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_52px] items-end gap-3">
+            <div className="grid grid-cols-[minmax(0,1fr)_52px] items-end gap-3">
               <textarea
                 rows={1}
                 value={inputValue}
+                maxLength={1500}
                 onChange={(event) =>
                   setInputValue(
                     event.target.value,
                   )
                 }
-                onFocus={() =>
-                  window.requestAnimationFrame(
-                    () =>
-                      scrollToBottom(),
-                  )
+                onKeyDown={
+                  handleTextareaKeyDown
                 }
-                placeholder="Ask Mubarok anything."
-                className="min-h-[52px] max-h-24 min-w-0 w-full resize-none rounded-2xl border border-white/10 bg-gradient-to-r from-black/30 to-violet-500/[0.04] px-4 py-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/30 focus:shadow-[0_0_25px_rgba(34,211,238,0.08)]"
+                placeholder="Ask anything."
+                className="min-h-[52px] max-h-28 w-full resize-none rounded-2xl border border-white/10 bg-black/30 px-4 py-4 text-sm text-white outline-none placeholder:text-slate-600"
               />
 
               <button
                 type="submit"
                 disabled={
-                  !inputValue.trim()
+                  !inputValue.trim() ||
+                  isTyping
                 }
-                aria-label="Send message on WhatsApp"
-                className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 via-cyan-400 to-blue-500 text-slate-950 shadow-[0_14px_38px_rgba(34,211,238,0.24)] transition hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(34,211,238,0.34)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+                aria-label="Send message"
+                className="flex h-[52px] w-[52px] items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 via-cyan-400 to-blue-500 text-slate-950 disabled:opacity-40"
               >
                 <FiSend className="h-5 w-5" />
               </button>
@@ -633,18 +865,18 @@ export default function WhatsAppChatbot() {
 
             <button
               type="button"
-              onClick={continueOnWhatsApp}
-              className="mt-3 flex w-full min-w-0 items-center justify-center gap-2 overflow-hidden rounded-2xl border border-emerald-300/20 bg-gradient-to-r from-emerald-500/15 via-cyan-500/10 to-violet-500/10 px-4 py-3 text-center text-sm font-semibold text-emerald-200 transition hover:border-emerald-300/30 hover:from-emerald-500/25 hover:via-cyan-500/15 hover:to-violet-500/15"
+              onClick={
+                continueOnWhatsApp
+              }
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-300/20 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-200"
             >
-              <span className="truncate">
-                Continue on WhatsApp.
-              </span>
+              Continue on WhatsApp.
 
-              <FiCheck className="h-4 w-4 shrink-0" />
+              <FiCheck className="h-4 w-4" />
             </button>
 
-            <p className="mt-3 truncate text-center text-[9px] leading-4 text-slate-600 sm:text-[10px]">
-              Your message will open securely in WhatsApp.
+            <p className="mt-3 text-center text-[9px] leading-4 text-slate-600">
+              AI responses may be incorrect. Do not submit passwords, payment information, or confidential data.
             </p>
           </form>
         </section>
@@ -659,26 +891,16 @@ export default function WhatsAppChatbot() {
         }
         aria-label={
           isOpen
-            ? "Close WhatsApp chatbot"
-            : "Open WhatsApp chatbot"
+            ? "Close AI assistant"
+            : "Open AI assistant"
         }
-        className="fixed bottom-4 right-4 z-[91] flex h-14 w-14 items-center justify-center rounded-full border border-cyan-200/25 bg-gradient-to-br from-emerald-400 via-cyan-400 to-violet-500 text-slate-950 shadow-[0_20px_60px_rgba(34,211,238,0.3),0_0_35px_rgba(139,92,246,0.2)] transition duration-300 hover:-translate-y-1 hover:scale-105 sm:bottom-6 sm:right-6 sm:h-16 sm:w-16"
+        className="fixed bottom-4 right-4 z-[91] flex h-14 w-14 items-center justify-center rounded-full border border-cyan-200/25 bg-gradient-to-br from-emerald-400 via-cyan-400 to-violet-500 text-slate-950 shadow-[0_20px_60px_rgba(34,211,238,0.3)] sm:bottom-6 sm:right-6 sm:h-16 sm:w-16"
       >
-        {!isOpen && (
-          <>
-            <span className="absolute inset-0 animate-ping rounded-full bg-cyan-400/20" />
-
-            <span className="absolute inset-2 rounded-full border border-white/20" />
-          </>
+        {isOpen ? (
+          <FiX className="h-6 w-6" />
+        ) : (
+          <FiMessageCircle className="h-6 w-6" />
         )}
-
-        <span className="relative">
-          {isOpen ? (
-            <FiX className="h-6 w-6 sm:h-7 sm:w-7" />
-          ) : (
-            <FiMessageCircle className="h-6 w-6 sm:h-7 sm:w-7" />
-          )}
-        </span>
       </button>
     </>
   );
