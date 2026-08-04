@@ -3,6 +3,7 @@ import {
   Manrope,
   Playfair_Display,
 } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import Background from "./components/Background";
 import SmoothScroll from "../components/SmoothScroll";
 import WhatsAppChatbot from "../components/WhatsAppChatbot";
@@ -131,6 +132,8 @@ export default function RootLayout({
         <WhatsAppChatbot />
 
         <SnakeCursor />
+
+        <Analytics />
       </body>
     </html>
   );
