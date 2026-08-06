@@ -20,9 +20,45 @@ const PORTFOLIO_REQUEST_PATTERNS: RegExp[] =
 
     /\b(contact|whatsapp|email|phone|availability|available)\b/i,
 
-    /\b(client|clients|country|countries|achievement|qualification)\b/i,
+    /\b(client|clients|achievement|qualification)\b/i,
 
     /\b(sales executive|sales strategy|business development)\b/i,
+  ];
+
+const CORRECTION_PATTERNS: RegExp[] =
+  [
+    /\b(wrong|incorrect|mistake|mixed up|mix-up|not true|false)\b/i,
+
+    /\b(that is not|that isn't|you confused|you gave me the wrong)\b/i,
+
+    /\b(broken link|link does not work|link doesn't work|wrong link)\b/i,
+
+    /\b(are you crazy|you are wrong|you're wrong)\b/i,
+
+    /\b(i meant|i am talking about|i'm talking about)\b/i,
+  ];
+
+const AMBIGUOUS_IDENTITY_PATTERNS: RegExp[] =
+  [
+    /\brodri\b/i,
+
+    /\bfootballer\b/i,
+
+    /\bsinger\b/i,
+
+    /\bactor\b/i,
+
+    /\bplayer\b/i,
+
+    /\bmanager\b/i,
+
+    /\bcoach\b/i,
+
+    /\bpresident\b/i,
+
+    /\bprime minister\b/i,
+
+    /\bceo\b/i,
   ];
 
 const SECTION_PATTERNS: Array<{
@@ -104,6 +140,24 @@ function isPortfolioRequest(
   );
 }
 
+function isCorrectionRequest(
+  message: string,
+) {
+  return CORRECTION_PATTERNS.some(
+    (pattern) =>
+      pattern.test(message),
+  );
+}
+
+function requiresIdentityVerification(
+  message: string,
+) {
+  return AMBIGUOUS_IDENTITY_PATTERNS.some(
+    (pattern) =>
+      pattern.test(message),
+  );
+}
+
 function selectPortfolioSections(
   message: string,
 ): PortfolioSection[] {
@@ -113,13 +167,13 @@ function selectPortfolioSections(
   for (
     const rule of SECTION_PATTERNS
   ) {
-    const matchesRule =
+    const matches =
       rule.patterns.some(
         (pattern) =>
           pattern.test(message),
       );
 
-    if (!matchesRule) {
+    if (!matches) {
       continue;
     }
 
@@ -190,7 +244,7 @@ function createRelevantPortfolioContext(
   portfolioContext: PortfolioContext,
   latestUserMessage: string,
 ) {
-  const selectedSections =
+  const sections =
     selectPortfolioSections(
       latestUserMessage,
     );
@@ -200,8 +254,7 @@ function createRelevantPortfolioContext(
       {};
 
   for (
-    const section of
-    selectedSections
+    const section of sections
   ) {
     selectedContext[section] =
       limitPortfolioRecord(
@@ -211,19 +264,19 @@ function createRelevantPortfolioContext(
       );
   }
 
-  const serializedContext =
+  const serialized =
     JSON.stringify(
       selectedContext,
     );
 
   if (
-    serializedContext.length <=
+    serialized.length <=
     MAX_PORTFOLIO_CONTEXT_CHARACTERS
   ) {
-    return serializedContext;
+    return serialized;
   }
 
-  return `${serializedContext.slice(
+  return `${serialized.slice(
     0,
     MAX_PORTFOLIO_CONTEXT_CHARACTERS,
   )}\n[Portfolio context shortened because of request-size limits.]`;
@@ -244,6 +297,46 @@ Always answer the visitor's newest message.
 Do not continue an older topic unless the newest message clearly refers to it.
 
 If the newest message is a greeting, respond naturally to that greeting.
+
+ACCURACY PRIORITY.
+
+Accuracy is more important than sounding confident.
+
+Never invent a fact, event, transfer, quotation, date, statistic, source, article title, page title, or URL.
+
+When information is uncertain or cannot be verified, clearly say that it could not be verified.
+
+Do not defend an earlier answer merely because it appears in the conversation history.
+
+When the visitor says that an earlier answer is wrong, treat the earlier assistant answer as untrusted.
+
+Perform a fresh evaluation and correct the answer directly.
+
+IDENTITY SAFETY.
+
+Before answering about a person whose name may refer to multiple people, establish the intended identity.
+
+Verify the person's full name, profession, organization, team, country, or another distinguishing fact.
+
+Do not combine information belonging to different people who share the same or a similar name.
+
+For example, when a visitor asks about Rodri the footballer, the intended person may be Rodrigo Hernández Cascante, the Spanish professional footballer.
+
+Do not assume this silently when the surrounding request indicates another person.
+
+LINK SAFETY.
+
+Never invent, reconstruct, predict, shorten, or guess a URL.
+
+Never create a sources table manually.
+
+Never produce a link merely because the domain or path looks plausible.
+
+Do not write raw URLs in the answer.
+
+Do not use Markdown links in the answer.
+
+When exact provider-verified source links are not available to you, mention the publication or organization by name without creating a link.
 
 GENERAL RESPONSE QUALITY.
 
@@ -326,34 +419,113 @@ ${relevantContext}
 `.trim();
 }
 
-function createLiveInstruction() {
+function createLiveInstruction({
+  correctionMode,
+  verifyIdentity,
+}: {
+  correctionMode: boolean;
+  verifyIdentity: boolean;
+}) {
   return `
 LIVE INFORMATION MODE.
 
-The visitor's newest message requires current or time-sensitive information.
+The visitor's newest message requires current, time-sensitive, or externally verifiable information.
 
-Use the Compound system's available live tools when useful.
+Use the available live-search tool.
 
-Do not answer recent or current questions only from stored model knowledge.
+Do not answer current questions only from stored model knowledge.
 
-Verify current sports results, match schedules, standings, prices, weather, news, releases, elections, office holders, and other time-sensitive facts before answering.
+Verify current sports results, schedules, standings, transfers, prices, weather, news, releases, elections, office holders, and other time-sensitive facts.
 
-For sports questions, identify the competition, teams, date, result, and status when the sources provide them.
+FRESH SEARCH REQUIREMENT.
 
-When multiple recent matches are relevant, present them in a compact table.
+Run a fresh search for the newest question.
+
+Do not rely on URLs, claims, or conclusions written by an earlier assistant message.
+
+${correctionMode
+    ? `
+CORRECTION MODE.
+
+The visitor has indicated that an earlier answer was wrong, confused, or supported by a bad link.
+
+Treat the earlier assistant answer as incorrect and untrusted.
+
+Search again from the beginning.
+
+Acknowledge the correction briefly.
+
+State what was wrong only when it can be established.
+
+Do not attempt to defend or preserve the earlier answer.
+`.trim()
+    : ""}
+
+${verifyIdentity
+    ? `
+IDENTITY VERIFICATION MODE.
+
+The request involves a potentially ambiguous person or role.
+
+Before answering, verify the exact identity using at least two distinguishing attributes, such as full name, profession, club, organization, nationality, office, or known role.
+
+Do not combine search results belonging to different people.
+
+For Rodri the footballer, verify that football sources refer to Rodrigo Hernández Cascante before using those results.
+`.trim()
+    : ""}
+
+SOURCE REQUIREMENTS.
+
+Use trustworthy and relevant sources.
+
+Prefer official organizations, clubs, governing bodies, leagues, government sources, established news organizations, and primary sources.
+
+Cross-check identity-sensitive or disputed claims with more than one source when practical.
+
+Do not invent article titles.
+
+Do not invent source names.
+
+Do not invent, reconstruct, or manually type URLs.
+
+Do not return a Markdown source table.
+
+Do not include raw URLs in the answer.
+
+Do not include Markdown links in the answer.
+
+You may mention verified source organizations by name in plain text.
+
+FACTUAL RESPONSE RULES.
+
+Clearly distinguish confirmed facts from reports, estimates, speculation, and unresolved claims.
+
+When sources disagree, say that they disagree.
+
+When a fact cannot be verified, say so.
 
 When an event has not happened, clearly state that it has not happened.
 
 Never invent a current result.
 
-Prefer reliable and authoritative sources.
-
 Do not claim that browsing is permanently unavailable.
-
-Do not include or discuss Mubarok Hossain's portfolio unless the visitor explicitly asks about it.
-
-Keep the system context compact so that live-search tools have enough request capacity.
 `.trim();
+}
+
+function removeUntrustedAssistantHistory(
+  history: GroqMessage[],
+  correctionMode: boolean,
+) {
+  if (!correctionMode) {
+    return history;
+  }
+
+  return history.filter(
+    (message) =>
+      message.role !==
+      "assistant",
+  );
 }
 
 export function createGroqMessages({
@@ -370,6 +542,22 @@ export function createGroqMessages({
   const cleanLatestMessage =
     latestUserMessage.trim();
 
+  const correctionMode =
+    isCorrectionRequest(
+      cleanLatestMessage,
+    );
+
+  const verifyIdentity =
+    requiresIdentityVerification(
+      cleanLatestMessage,
+    );
+
+  const safeHistory =
+    removeUntrustedAssistantHistory(
+      history,
+      correctionMode,
+    );
+
   const systemSections = [
     createSharedInstruction(),
   ];
@@ -378,7 +566,10 @@ export function createGroqMessages({
     mode === "live"
   ) {
     systemSections.push(
-      createLiveInstruction(),
+      createLiveInstruction({
+        correctionMode,
+        verifyIdentity,
+      }),
     );
   } else if (
     isPortfolioRequest(
@@ -407,7 +598,7 @@ export function createGroqMessages({
         ),
     },
 
-    ...history,
+    ...safeHistory,
 
     {
       role: "user",

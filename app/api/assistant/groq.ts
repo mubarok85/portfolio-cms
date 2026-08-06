@@ -10,16 +10,16 @@ const GROQ_RESPONSES_ENDPOINT =
   "https://api.groq.com/openai/v1/responses";
 
 const STANDARD_MAX_OUTPUT_TOKENS =
-  2200;
+  3200;
 
 const LIVE_MAX_OUTPUT_TOKENS =
   900;
 
 const MAX_LIVE_SYSTEM_CHARACTERS =
-  5000;
+  9000;
 
 const MAX_LIVE_USER_CHARACTERS =
-  3000;
+  5000;
 
 type GroqErrorResponse = {
   error?: {

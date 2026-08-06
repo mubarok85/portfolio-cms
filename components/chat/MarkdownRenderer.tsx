@@ -1,14 +1,24 @@
 "use client";
 
+import type {
+  ReactNode,
+} from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import {
-  FiExternalLink,
-} from "react-icons/fi";
 
 type MarkdownRendererProps = {
   content: string;
 };
+
+function getSafeLinkLabel(
+  children: ReactNode,
+) {
+  return (
+    <span className="font-medium text-slate-200">
+      {children}
+    </span>
+  );
+}
 
 export default function MarkdownRenderer({
   content,
@@ -19,6 +29,7 @@ export default function MarkdownRenderer({
         remarkPlugins={[
           remarkGfm,
         ]}
+        skipHtml
         components={{
           h1: ({
             children,
@@ -109,20 +120,11 @@ export default function MarkdownRenderer({
           ),
 
           a: ({
-            href,
             children,
-          }) => (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 font-medium text-cyan-300 underline decoration-cyan-300/30 underline-offset-4 transition hover:text-cyan-200"
-            >
-              {children}
-
-              <FiExternalLink className="inline h-3 w-3 shrink-0" />
-            </a>
-          ),
+          }) =>
+            getSafeLinkLabel(
+              children,
+            ),
 
           code: ({
             className,
@@ -215,7 +217,7 @@ export default function MarkdownRenderer({
           td: ({
             children,
           }) => (
-            <td className="min-w-[120px] px-3 py-2.5 align-top text-slate-300">
+            <td className="min-w-[120px] break-words px-3 py-2.5 align-top text-slate-300">
               {children}
             </td>
           ),
