@@ -14,8 +14,8 @@ export const dynamic =
 const BUCKET_NAME =
   "chatbot-uploads";
 
-const GROQ_RESPONSES_ENDPOINT =
-  "https://api.groq.com/openai/v1/responses";
+const GROQ_CHAT_ENDPOINT =
+  "https://api.groq.com/openai/v1/chat/completions";
 
 const MAX_IMAGE_COUNT =
   3;
@@ -24,31 +24,19 @@ const SIGNED_URL_LIFETIME_SECONDS =
   10 * 60;
 
 const VISION_MAX_OUTPUT_TOKENS =
-  4000;
+  2400;
 
 const VISION_TIMEOUT_MILLISECONDS =
   90_000;
 
-type GroqVisionContentItem = {
-  type?: string;
-  text?: string | null;
-};
-
-type GroqVisionOutputItem = {
-  type?: string;
-  role?: string;
-  content?: GroqVisionContentItem[];
-};
-
 type GroqVisionResponse = {
-  id?: string;
-  status?: string | null;
-  output_text?: string | null;
-  output?: GroqVisionOutputItem[];
+  choices?: Array<{
+    finish_reason?: string | null;
 
-  incomplete_details?: {
-    reason?: string | null;
-  } | null;
+    message?: {
+      content?: string | null;
+    };
+  }>;
 
   error?: {
     message?: string;
@@ -71,48 +59,6 @@ function createError(
     {
       status,
     },
-  );
-}
-
-function extractResponseText(
-  result: GroqVisionResponse,
-) {
-  const directText =
-    result.output_text?.trim();
-
-  if (
-    directText
-  ) {
-    return directText;
-  }
-
-  return (
-    result.output
-      ?.flatMap(
-        (item) =>
-          item.content ||
-          [],
-      )
-      .filter(
-        (item) =>
-          item.type ===
-            "output_text" &&
-          typeof item.text ===
-            "string",
-      )
-      .map(
-        (item) =>
-          item.text?.trim() ||
-          "",
-      )
-      .filter(
-        Boolean,
-      )
-      .join(
-        "\n\n",
-      )
-      .trim() ||
-    ""
   );
 }
 
@@ -140,29 +86,29 @@ ANALYSIS REQUIREMENTS.
 
 Inspect every uploaded image before answering.
 
-When multiple images are present, refer to them as Image 1, Image 2, and Image 3.
+When multiple images are provided, refer to them as Image 1, Image 2, and Image 3.
 
-Answer the visitor's specific question first.
+Answer the visitor's exact question first.
 
-Then describe the important visual evidence supporting the answer.
+Then explain the most important visual evidence supporting your answer.
 
-For interface or website screenshots, evaluate layout, visual hierarchy, spacing, typography, colors, accessibility, mobile usability, content clarity, calls to action, trust signals, and visible technical problems.
+For website or application screenshots, review the visible layout, hierarchy, spacing, typography, colors, content clarity, calls to action, accessibility, mobile usability, trust signals, and visible technical problems.
 
-For documents or screenshots containing text, read the visible text carefully.
+For screenshots containing text, read only text that is genuinely visible.
 
-Clearly distinguish readable text from unclear or partially visible text.
+Clearly state when text or visual details are too small or unclear to verify.
 
-Do not invent hidden details.
+Do not invent hidden content.
 
-Do not identify a real person by name from appearance alone.
+Do not identify a real person by name based only on appearance.
 
-Use clear Markdown headings, short paragraphs, and concise bullet points when useful.
+Use clear Markdown headings and concise bullet points when helpful.
 
-Complete every section fully.
+Keep the analysis focused enough to complete within the available response limit.
 
-Do not finish with an incomplete sentence, heading, colon, or bullet point.
+Complete every sentence, heading, list, and section.
 
-For broad requests, provide a complete but focused analysis rather than an excessively long unfinished response.
+Do not finish with an incomplete bullet point, colon, heading, or sentence.
 `.trim();
 }
 
@@ -321,7 +267,7 @@ export async function POST(
             .trim()
             .slice(
               0,
-              5000,
+              4000,
             )
         : "";
 
@@ -425,7 +371,7 @@ export async function POST(
 
     const response =
       await fetch(
-        GROQ_RESPONSES_ENDPOINT,
+        GROQ_CHAT_ENDPOINT,
         {
           method:
             "POST",
@@ -443,7 +389,7 @@ export async function POST(
               model:
                 visionModel,
 
-              input: [
+              messages: [
                 {
                   role:
                     "user",
@@ -451,7 +397,7 @@ export async function POST(
                   content: [
                     {
                       type:
-                        "input_text",
+                        "text",
 
                       text:
                         createVisionInstruction(
@@ -465,18 +411,35 @@ export async function POST(
                         imageUrl,
                       ) => ({
                         type:
-                          "input_image",
+                          "image_url",
 
-                        image_url:
-                          imageUrl,
+                        image_url: {
+                          url:
+                            imageUrl,
+                        },
                       }),
                     ),
                   ],
                 },
               ],
 
-              max_output_tokens:
+              reasoning_effort:
+                "none",
+
+              reasoning_format:
+                "hidden",
+
+              temperature:
+                0.7,
+
+              top_p:
+                0.8,
+
+              max_completion_tokens:
                 VISION_MAX_OUTPUT_TOKENS,
+
+              stream:
+                false,
             }),
 
           cache:
@@ -524,6 +487,16 @@ export async function POST(
         },
       );
 
+      if (
+        response.status ===
+        429
+      ) {
+        return createError(
+          "The image-analysis token limit was reached. Please wait a minute, try fewer images, or ask a shorter question.",
+          429,
+        );
+      }
+
       return createError(
         providerMessage ||
           `Image analysis failed with status ${response.status}.`,
@@ -532,9 +505,10 @@ export async function POST(
     }
 
     const answer =
-      extractResponseText(
-        result,
-      );
+      result.choices?.[0]
+        ?.message
+        ?.content
+        ?.trim();
 
     if (
       !answer
@@ -545,35 +519,14 @@ export async function POST(
       );
     }
 
-    const incompleteReason =
-      result
-        .incomplete_details
-        ?.reason
-        ?.trim();
+    const finishReason =
+      result.choices?.[0]
+        ?.finish_reason ||
+      null;
 
     const wasIncomplete =
-      result.status ===
-        "incomplete" ||
-      Boolean(
-        incompleteReason,
-      );
-
-    if (
-      wasIncomplete
-    ) {
-      console.warn(
-        "Vision response was incomplete.",
-        {
-          status:
-            result.status,
-
-          incompleteReason,
-
-          answerLength:
-            answer.length,
-        },
-      );
-    }
+      finishReason ===
+      "length";
 
     const finalAnswer =
       wasIncomplete
@@ -593,9 +546,7 @@ export async function POST(
       incomplete:
         wasIncomplete,
 
-      incompleteReason:
-        incompleteReason ||
-        null,
+      finishReason,
     });
   } catch (error) {
     if (
@@ -606,7 +557,7 @@ export async function POST(
       return createError(
         request.signal.aborted
           ? "The image analysis was cancelled."
-          : "The image analysis took too long. Please try fewer images or ask a more focused question.",
+          : "The image analysis took too long. Please try fewer images or a more focused question.",
         504,
       );
     }
