@@ -1,108 +1,39 @@
 "use client";
 
 import {
-  FormEvent,
-  KeyboardEvent,
   WheelEvent,
   useEffect,
   useRef,
   useState,
 } from "react";
 import {
-  FiArrowDown,
-  FiArrowRight,
-  FiCheck,
   FiMessageCircle,
-  FiRefreshCw,
-  FiSend,
-  FiStar,
   FiX,
 } from "react-icons/fi";
-
-type ChatMessage = {
-  id: string;
-  sender: "assistant" | "visitor";
-  text: string;
-};
-
-type ChatbotSettings = {
-  navbar_image_url?: string | null;
-};
-
-type AssistantApiResponse = {
-  success?: boolean;
-  message?: string;
-};
-
-const WHATSAPP_NUMBER =
-  "8801881527885";
-
-const FALLBACK_IMAGE =
-  "/profile.webp";
-
-const SESSION_STORAGE_KEY =
-  "portfolio-assistant-session";
-
-const CHAT_STORAGE_KEY =
-  "portfolio-assistant-messages";
-
-const MAX_STORED_MESSAGES = 20;
-
-const QUICK_QUESTIONS = [
-  {
-    title: "Hire Mubarok.",
-    description:
-      "Discuss sales or business support.",
-    message:
-      "I want to hire Mubarok. Can you help me get started?",
-    accent:
-      "from-blue-500/20 via-indigo-500/10 to-transparent",
-    iconColor: "text-blue-300",
-  },
-  {
-    title:
-      "Request a quotation.",
-    description:
-      "Discuss your project requirements.",
-    message:
-      "I need a project quotation. What information should I provide?",
-    accent:
-      "from-violet-500/20 via-fuchsia-500/10 to-transparent",
-    iconColor: "text-violet-300",
-  },
-  {
-    title: "Website project.",
-    description:
-      "Discuss a website or online platform.",
-    message:
-      "I want to discuss a website project.",
-    accent:
-      "from-cyan-500/20 via-blue-500/10 to-transparent",
-    iconColor: "text-cyan-300",
-  },
-  {
-    title:
-      "Ask a general question.",
-    description:
-      "Use the assistant like a regular chatbot.",
-    message:
-      "What can you help me with?",
-    accent:
-      "from-emerald-500/20 via-teal-500/10 to-transparent",
-    iconColor:
-      "text-emerald-300",
-  },
-];
-
-const INITIAL_MESSAGES: ChatMessage[] =
-  [
-    {
-      id: "welcome-message",
-      sender: "assistant",
-      text:
-        "Hi, I am Mubarok Hossain's AI assistant. You can ask me general questions, learn about Mubarok's portfolio, discuss a project, or continue directly on WhatsApp.",
-    },
-  ];
+import ChatHeader from "./chat/ChatHeader";
+import ChatInput from "./chat/ChatInput";
+import ChatMessages from "./chat/ChatMessages";
+import {
+  CHAT_STORAGE_KEY,
+  FALLBACK_IMAGE,
+  IMAGE_REQUEST_PATTERNS,
+  INITIAL_MESSAGES,
+  LIVE_INFORMATION_PATTERNS,
+  MAX_API_CONTEXT_MESSAGES,
+  MAX_CONTEXT_MESSAGE_LENGTH,
+  SESSION_STORAGE_KEY,
+  WHATSAPP_NUMBER,
+} from "./chat/constants";
+import type {
+  ApiConversationMessage,
+  AssistantStreamEvent,
+  ChatbotSettings,
+  ChatMessage,
+  ImageChatMessage,
+  StoredChatMessage,
+  TextChatMessage,
+  ThinkingMode,
+} from "./chat/types";
 
 function createMessageId() {
   return `${Date.now()}-${Math.random()
@@ -111,25 +42,243 @@ function createMessageId() {
 }
 
 function createSessionId() {
+  if (
+    typeof crypto !==
+      "undefined" &&
+    typeof crypto.randomUUID ===
+      "function"
+  ) {
+    return crypto.randomUUID();
+  }
+
   return `session-${Date.now()}-${Math.random()
     .toString(36)
-    .slice(2, 12)}`;
+    .slice(2, 14)}`;
+}
+
+function normalizeStoredMessages(
+  value: unknown,
+): StoredChatMessage[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter(
+      (
+        item,
+      ): item is Record<
+        string,
+        unknown
+      > =>
+        Boolean(item) &&
+        typeof item ===
+          "object",
+    )
+    .filter(
+      (item) =>
+        typeof item.id ===
+          "string" &&
+        typeof item.text ===
+          "string" &&
+        (
+          item.sender ===
+            "assistant" ||
+          item.sender ===
+            "visitor"
+        ),
+    )
+    .map((item) => ({
+      id:
+        item.id as string,
+
+      kind: "text",
+
+      sender:
+        item.sender as
+          | "assistant"
+          | "visitor",
+
+      text:
+        item.text as string,
+
+      isStreaming:
+        false,
+    }));
+}
+
+function isImageRequest(
+  message: string,
+) {
+  return IMAGE_REQUEST_PATTERNS.some(
+    (pattern) =>
+      pattern.test(message),
+  );
+}
+
+function requiresLiveInformation(
+  message: string,
+) {
+  return LIVE_INFORMATION_PATTERNS.some(
+    (pattern) =>
+      pattern.test(message),
+  );
+}
+
+function cleanImagePrompt(
+  message: string,
+) {
+  return message
+    .replace(
+      /^\s*\/image\s+/i,
+      "",
+    )
+    .replace(
+      /^(please\s+)?(generate|create|make|draw|design|paint|illustrate|render)\s+(me\s+)?(an?\s+)?(image|picture|photo|artwork|illustration)\s+(of\s+)?/i,
+      "",
+    )
+    .trim();
+}
+
+function shortenText(
+  text: string,
+) {
+  const cleanText =
+    text.trim();
+
+  if (
+    cleanText.length <=
+    MAX_CONTEXT_MESSAGE_LENGTH
+  ) {
+    return cleanText;
+  }
+
+  return `${cleanText.slice(
+    0,
+    MAX_CONTEXT_MESSAGE_LENGTH,
+  )}\n\n[Earlier message shortened.]`;
+}
+
+function createApiContext(
+  messages: ChatMessage[],
+  visitorMessage: TextChatMessage,
+): ApiConversationMessage[] {
+  const history =
+    messages
+      .filter(
+        (
+          message,
+        ): message is TextChatMessage =>
+          message.kind ===
+            "text" &&
+          !message.isStreaming,
+      )
+      .filter(
+        (message) =>
+          message.id !==
+          "welcome-message",
+      )
+      .slice(
+        -MAX_API_CONTEXT_MESSAGES,
+      )
+      .map((message) => ({
+        role:
+          message.sender ===
+          "visitor"
+            ? "user" as const
+            : "assistant" as const,
+
+        content:
+          shortenText(
+            message.text,
+          ),
+      }));
+
+  return [
+    ...history,
+
+    {
+      role: "user",
+
+      content:
+        visitorMessage.text,
+    },
+  ];
+}
+
+function parseSseBlock(
+  block: string,
+) {
+  const dataLines =
+    block
+      .split("\n")
+      .filter(
+        (line) =>
+          line.startsWith(
+            "data:",
+          ),
+      )
+      .map(
+        (line) =>
+          line
+            .slice(5)
+            .trimStart(),
+      );
+
+  if (
+    dataLines.length === 0
+  ) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(
+      dataLines.join(""),
+    ) as AssistantStreamEvent;
+  } catch {
+    return null;
+  }
 }
 
 export default function WhatsAppChatbot() {
-  const [isOpen, setIsOpen] =
-    useState(false);
+  const [
+    isOpen,
+    setIsOpen,
+  ] = useState(false);
 
-  const [messages, setMessages] =
-    useState<ChatMessage[]>(
-      INITIAL_MESSAGES,
-    );
+  const [
+    messages,
+    setMessages,
+  ] = useState<ChatMessage[]>(
+    INITIAL_MESSAGES,
+  );
 
-  const [inputValue, setInputValue] =
-    useState("");
+  const [
+    inputValue,
+    setInputValue,
+  ] = useState("");
 
-  const [isTyping, setIsTyping] =
-    useState(false);
+  const [
+    isBusy,
+    setIsBusy,
+  ] = useState(false);
+
+  const [
+    isWaitingForFirstToken,
+    setIsWaitingForFirstToken,
+  ] = useState(false);
+
+  const [
+    thinkingMode,
+    setThinkingMode,
+  ] = useState<ThinkingMode>(
+    "standard",
+  );
+
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] = useState("");
 
   const [
     showQuestions,
@@ -142,18 +291,26 @@ export default function WhatsAppChatbot() {
   ] = useState(false);
 
   const [
+    sessionId,
+    setSessionId,
+  ] = useState("");
+
+  const [
     profileImage,
     setProfileImage,
   ] = useState(FALLBACK_IMAGE);
 
-  const [imageFailed, setImageFailed] =
-    useState(false);
+  const [
+    imageFailed,
+    setImageFailed,
+  ] = useState(false);
 
-  const [sessionId, setSessionId] =
-    useState("");
-
-  const [errorMessage, setErrorMessage] =
-    useState("");
+  const [
+    regeneratingMessageId,
+    setRegeneratingMessageId,
+  ] = useState<string | null>(
+    null,
+  );
 
   const scrollAreaRef =
     useRef<HTMLDivElement>(null);
@@ -163,51 +320,61 @@ export default function WhatsAppChatbot() {
       null,
     );
 
+  const imageUrlsRef =
+    useRef<Set<string>>(
+      new Set(),
+    );
+
+  const autoScrollRef =
+    useRef(true);
+
   useEffect(() => {
     const storedSession =
       window.localStorage.getItem(
         SESSION_STORAGE_KEY,
       );
 
-    const currentSession =
+    const activeSession =
       storedSession ||
       createSessionId();
 
-    if (!storedSession) {
-      window.localStorage.setItem(
-        SESSION_STORAGE_KEY,
-        currentSession,
-      );
-    }
+    window.localStorage.setItem(
+      SESSION_STORAGE_KEY,
+      activeSession,
+    );
 
-    setSessionId(currentSession);
+    setSessionId(
+      activeSession,
+    );
 
     try {
-      const storedMessages =
+      const rawMessages =
         window.localStorage.getItem(
           CHAT_STORAGE_KEY,
         );
 
-      if (storedMessages) {
-        const parsedMessages =
+      if (!rawMessages) {
+        return;
+      }
+
+      const restoredMessages =
+        normalizeStoredMessages(
           JSON.parse(
-            storedMessages,
-          ) as ChatMessage[];
+            rawMessages,
+          ),
+        );
 
-        if (
-          Array.isArray(
-            parsedMessages,
-          ) &&
-          parsedMessages.length > 0
-        ) {
-          setMessages(
-            parsedMessages.slice(
-              -MAX_STORED_MESSAGES,
-            ),
-          );
+      if (
+        restoredMessages.length >
+        0
+      ) {
+        setMessages(
+          restoredMessages,
+        );
 
-          setShowQuestions(false);
-        }
+        setShowQuestions(
+          false,
+        );
       }
     } catch {
       window.localStorage.removeItem(
@@ -217,31 +384,47 @@ export default function WhatsAppChatbot() {
   }, []);
 
   useEffect(() => {
-    if (
-      messages.length === 0
-    ) {
-      return;
-    }
+    const textMessages =
+      messages
+        .filter(
+          (
+            message,
+          ): message is TextChatMessage =>
+            message.kind ===
+              "text" &&
+            !message.isStreaming,
+        )
+        .map((message) => ({
+          ...message,
+          isStreaming:
+            false,
+        }));
 
-    window.localStorage.setItem(
-      CHAT_STORAGE_KEY,
-      JSON.stringify(
-        messages.slice(
-          -MAX_STORED_MESSAGES,
+    try {
+      window.localStorage.setItem(
+        CHAT_STORAGE_KEY,
+        JSON.stringify(
+          textMessages,
         ),
-      ),
-    );
+      );
+    } catch {
+      window.localStorage.removeItem(
+        CHAT_STORAGE_KEY,
+      );
+    }
   }, [messages]);
 
   useEffect(() => {
-    async function loadChatbotImage() {
+    async function loadProfileImage() {
       try {
-        const response = await fetch(
-          "/api/settings",
-          {
-            cache: "no-store",
-          },
-        );
+        const response =
+          await fetch(
+            "/api/settings",
+            {
+              cache:
+                "no-store",
+            },
+          );
 
         const result =
           await response.json();
@@ -255,11 +438,15 @@ export default function WhatsAppChatbot() {
             result.data as ChatbotSettings;
 
           setProfileImage(
-            settings.navbar_image_url?.trim() ||
+            settings
+              .navbar_image_url
+              ?.trim() ||
               FALLBACK_IMAGE,
           );
 
-          setImageFailed(false);
+          setImageFailed(
+            false,
+          );
         }
       } catch {
         setProfileImage(
@@ -268,47 +455,71 @@ export default function WhatsAppChatbot() {
       }
     }
 
-    loadChatbotImage();
+    void loadProfileImage();
   }, []);
 
   useEffect(() => {
-    return () => {
-      requestControllerRef.current?.abort();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isOpen) {
+    if (
+      !autoScrollRef.current
+    ) {
       return;
     }
 
-    const previousOverflow =
-      document.body.style.overflow;
-
-    if (window.innerWidth < 640) {
-      document.body.style.overflow =
-        "hidden";
-    }
-
     window.requestAnimationFrame(
       () => {
-        scrollToBottom("auto");
+        scrollToBottom(
+          "auto",
+        );
       },
     );
-
-    return () => {
-      document.body.style.overflow =
-        previousOverflow;
-    };
-  }, [isOpen]);
+  }, [
+    messages,
+    isWaitingForFirstToken,
+  ]);
 
   useEffect(() => {
-    window.requestAnimationFrame(
-      () => {
-        scrollToBottom("smooth");
-      },
+    const imageUrls =
+      imageUrlsRef.current;
+
+    return () => {
+      requestControllerRef.current?.abort();
+
+      for (
+        const imageUrl of
+        imageUrls
+      ) {
+        URL.revokeObjectURL(
+          imageUrl,
+        );
+      }
+    };
+  }, []);
+
+  function scrollToBottom(
+    behavior: ScrollBehavior =
+      "smooth",
+  ) {
+    const container =
+      scrollAreaRef.current;
+
+    if (!container) {
+      return;
+    }
+
+    autoScrollRef.current =
+      true;
+
+    container.scrollTo({
+      top:
+        container.scrollHeight,
+
+      behavior,
+    });
+
+    setShowScrollButton(
+      false,
     );
-  }, [messages, isTyping]);
+  }
 
   function updateScrollButton() {
     const container =
@@ -318,65 +529,113 @@ export default function WhatsAppChatbot() {
       return;
     }
 
-    const distanceFromBottom =
+    const distance =
       container.scrollHeight -
       container.scrollTop -
       container.clientHeight;
 
+    const isNearBottom =
+      distance < 100;
+
+    autoScrollRef.current =
+      isNearBottom;
+
     setShowScrollButton(
-      distanceFromBottom > 80,
+      !isNearBottom,
     );
   }
 
-  function scrollToBottom(
-    behavior: ScrollBehavior = "smooth",
+  function handleChatWheel(
+    event: WheelEvent<HTMLDivElement>,
   ) {
-    const container =
-      scrollAreaRef.current;
-
-    if (!container) {
-      return;
-    }
-
-    container.scrollTo({
-      top: container.scrollHeight,
-      behavior,
-    });
+    event.stopPropagation();
   }
 
-  async function sendMessage(
-    rawMessage: string,
+  function finishStreamingMessage(
+    messageId: string,
   ) {
-    const cleanMessage =
-      rawMessage.trim();
+    setMessages(
+      (current) =>
+        current.map(
+          (message) =>
+            message.kind ===
+              "text" &&
+            message.id ===
+              messageId
+              ? {
+                  ...message,
+                  isStreaming:
+                    false,
+                }
+              : message,
+        ),
+    );
+  }
+
+  function stopGenerating() {
+    requestControllerRef.current?.abort();
+
+    requestControllerRef.current =
+      null;
+
+    setMessages(
+      (current) =>
+        current.map(
+          (message) =>
+            message.kind ===
+              "text" &&
+            message.isStreaming
+              ? {
+                  ...message,
+                  isStreaming:
+                    false,
+                }
+              : message,
+        ),
+    );
+
+    setIsBusy(
+      false,
+    );
+
+    setIsWaitingForFirstToken(
+      false,
+    );
+  }
+
+  async function generateImage(
+    prompt: string,
+    replaceMessageId?: string,
+  ) {
+    const cleanPrompt =
+      cleanImagePrompt(
+        prompt,
+      ) ||
+      prompt.trim();
+
+    setThinkingMode(
+      "image",
+    );
+
+    setIsBusy(
+      true,
+    );
+
+    setIsWaitingForFirstToken(
+      true,
+    );
+
+    setErrorMessage(
+      "",
+    );
 
     if (
-      !cleanMessage ||
-      isTyping
+      replaceMessageId
     ) {
-      return;
+      setRegeneratingMessageId(
+        replaceMessageId,
+      );
     }
-
-    setErrorMessage("");
-    setShowQuestions(false);
-
-    const visitorMessage: ChatMessage =
-      {
-        id: createMessageId(),
-        sender: "visitor",
-        text: cleanMessage,
-      };
-
-    const updatedMessages = [
-      ...messages,
-      visitorMessage,
-    ].slice(-MAX_STORED_MESSAGES);
-
-    setMessages(updatedMessages);
-    setInputValue("");
-    setIsTyping(true);
-
-    requestControllerRef.current?.abort();
 
     const controller =
       new AbortController();
@@ -385,98 +644,144 @@ export default function WhatsAppChatbot() {
       controller;
 
     try {
-      const response = await fetch(
-        "/api/assistant",
-        {
-          method: "POST",
+      const response =
+        await fetch(
+          "/api/generate-image",
+          {
+            method: "POST",
 
-          headers: {
-            "Content-Type":
-              "application/json",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body: JSON.stringify({
+              prompt:
+                cleanPrompt,
+            }),
+
+            signal:
+              controller.signal,
           },
+        );
 
-          body: JSON.stringify({
-            sessionId,
+      if (!response.ok) {
+        let message =
+          "The image could not be generated.";
 
-            messages:
-              updatedMessages
-                .filter(
-                  (message) =>
-                    message.id !==
-                    "welcome-message",
-                )
-                .slice(-10)
-                .map((message) => ({
-                  role:
-                    message.sender ===
-                    "visitor"
-                      ? "user"
-                      : "assistant",
+        try {
+          const result =
+            await response.json();
 
-                  content:
-                    message.text,
-                })),
-          }),
+          if (
+            typeof result.message ===
+            "string"
+          ) {
+            message =
+              result.message;
+          }
+        } catch {
+          // Keep fallback.
+        }
 
-          signal:
-            controller.signal,
-        },
-      );
-
-      const result =
-        (await response.json()) as AssistantApiResponse;
-
-      const assistantText =
-        result.message?.trim();
-
-      if (
-        !response.ok ||
-        !result.success ||
-        !assistantText
-      ) {
         throw new Error(
-          assistantText ||
-            "The assistant could not respond.",
+          message,
         );
       }
 
-      setMessages((current) => [
-        ...current,
+      const imageBlob =
+        await response.blob();
+
+      const imageUrl =
+        URL.createObjectURL(
+          imageBlob,
+        );
+
+      imageUrlsRef.current.add(
+        imageUrl,
+      );
+
+      const generatedMessage: ImageChatMessage =
         {
-          id: createMessageId(),
+          id:
+            replaceMessageId ||
+            createMessageId(),
+
+          kind: "image",
+
           sender: "assistant",
-          text: assistantText,
+
+          prompt:
+            cleanPrompt,
+
+          imageUrl,
+        };
+
+      setMessages(
+        (current) => {
+          if (
+            !replaceMessageId
+          ) {
+            return [
+              ...current,
+              generatedMessage,
+            ];
+          }
+
+          return current.map(
+            (message) => {
+              if (
+                message.id !==
+                replaceMessageId
+              ) {
+                return message;
+              }
+
+              if (
+                message.kind ===
+                "image"
+              ) {
+                URL.revokeObjectURL(
+                  message.imageUrl,
+                );
+
+                imageUrlsRef.current.delete(
+                  message.imageUrl,
+                );
+              }
+
+              return generatedMessage;
+            },
+          );
         },
-      ]);
+      );
     } catch (error) {
       if (
-        error instanceof DOMException &&
-        error.name === "AbortError"
+        error instanceof
+          DOMException &&
+        error.name ===
+          "AbortError"
       ) {
         return;
       }
 
-      const fallbackMessage =
-        error instanceof Error &&
-        error.message
-          ? error.message
-          : "I could not generate a response right now. Please try again or continue on WhatsApp.";
-
       setErrorMessage(
-        fallbackMessage,
+        error instanceof Error
+          ? error.message
+          : "The image could not be generated.",
+      );
+    } finally {
+      setIsBusy(
+        false,
       );
 
-      setMessages((current) => [
-        ...current,
-        {
-          id: createMessageId(),
-          sender: "assistant",
-          text:
-            "I am having trouble responding right now. You can try again or use the Continue on WhatsApp button.",
-        },
-      ]);
-    } finally {
-      setIsTyping(false);
+      setIsWaitingForFirstToken(
+        false,
+      );
+
+      setRegeneratingMessageId(
+        null,
+      );
 
       if (
         requestControllerRef.current ===
@@ -488,40 +793,379 @@ export default function WhatsAppChatbot() {
     }
   }
 
-  function handleSubmit(
-    event: FormEvent<HTMLFormElement>,
+  async function sendTextMessage(
+    visitorMessage: TextChatMessage,
   ) {
-    event.preventDefault();
+    const selectedMode:
+      ThinkingMode =
+      requiresLiveInformation(
+        visitorMessage.text,
+      )
+        ? "live"
+        : "standard";
 
-    void sendMessage(inputValue);
-  }
+    setThinkingMode(
+      selectedMode,
+    );
 
-  function handleTextareaKeyDown(
-    event: KeyboardEvent<HTMLTextAreaElement>,
-  ) {
-    if (
-      event.key === "Enter" &&
-      !event.shiftKey
-    ) {
-      event.preventDefault();
+    setIsBusy(
+      true,
+    );
 
-      void sendMessage(inputValue);
+    setIsWaitingForFirstToken(
+      true,
+    );
+
+    requestControllerRef.current?.abort();
+
+    const controller =
+      new AbortController();
+
+    requestControllerRef.current =
+      controller;
+
+    const assistantMessageId =
+      createMessageId();
+
+    let assistantMessageCreated =
+      false;
+
+    try {
+      const response =
+        await fetch(
+          "/api/assistant",
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body: JSON.stringify({
+              sessionId,
+
+              messages:
+                createApiContext(
+                  messages,
+                  visitorMessage,
+                ),
+            }),
+
+            signal:
+              controller.signal,
+          },
+        );
+
+      if (!response.ok) {
+        let message =
+          `The assistant request failed with status ${response.status}.`;
+
+        try {
+          const result =
+            await response.json();
+
+          if (
+            typeof result.message ===
+            "string"
+          ) {
+            message =
+              result.message;
+          }
+        } catch {
+          // Keep fallback.
+        }
+
+        throw new Error(
+          message,
+        );
+      }
+
+      const reader =
+        response.body?.getReader();
+
+      if (!reader) {
+        throw new Error(
+          "The assistant response did not contain a readable stream.",
+        );
+      }
+
+      const decoder =
+        new TextDecoder();
+
+      let buffer = "";
+      let streamFinished =
+        false;
+
+      while (!streamFinished) {
+        const {
+          value,
+          done,
+        } =
+          await reader.read();
+
+        if (done) {
+          break;
+        }
+
+        buffer +=
+          decoder.decode(
+            value,
+            {
+              stream: true,
+            },
+          );
+
+        const blocks =
+          buffer.split(
+            "\n\n",
+          );
+
+        buffer =
+          blocks.pop() ||
+          "";
+
+        for (
+          const block of blocks
+        ) {
+          const event =
+            parseSseBlock(
+              block,
+            );
+
+          if (!event) {
+            continue;
+          }
+
+          if (
+            event.type ===
+            "metadata"
+          ) {
+            setThinkingMode(
+              event.mode,
+            );
+          }
+
+          if (
+            event.type ===
+              "delta" &&
+            event.text
+          ) {
+            setIsWaitingForFirstToken(
+              false,
+            );
+
+            if (
+              !assistantMessageCreated
+            ) {
+              assistantMessageCreated =
+                true;
+
+              setMessages(
+                (current) => [
+                  ...current,
+
+                  {
+                    id:
+                      assistantMessageId,
+
+                    kind:
+                      "text",
+
+                    sender:
+                      "assistant",
+
+                    text:
+                      event.text,
+
+                    isStreaming:
+                      true,
+                  },
+                ],
+              );
+            } else {
+              setMessages(
+                (current) =>
+                  current.map(
+                    (message) =>
+                      message.kind ===
+                        "text" &&
+                      message.id ===
+                        assistantMessageId
+                        ? {
+                            ...message,
+
+                            text:
+                              message.text +
+                              event.text,
+                          }
+                        : message,
+                  ),
+              );
+            }
+          }
+
+          if (
+            event.type ===
+            "error"
+          ) {
+            throw new Error(
+              event.message,
+            );
+          }
+
+          if (
+            event.type ===
+            "done"
+          ) {
+            streamFinished =
+              true;
+
+            break;
+          }
+        }
+      }
+
+      if (
+        assistantMessageCreated
+      ) {
+        finishStreamingMessage(
+          assistantMessageId,
+        );
+      } else {
+        throw new Error(
+          "The assistant returned an empty response.",
+        );
+      }
+    } catch (error) {
+      if (
+        error instanceof
+          DOMException &&
+        error.name ===
+          "AbortError"
+      ) {
+        if (
+          assistantMessageCreated
+        ) {
+          finishStreamingMessage(
+            assistantMessageId,
+          );
+        }
+
+        return;
+      }
+
+      if (
+        assistantMessageCreated
+      ) {
+        finishStreamingMessage(
+          assistantMessageId,
+        );
+      }
+
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "The assistant could not respond.",
+      );
+    } finally {
+      setIsBusy(
+        false,
+      );
+
+      setIsWaitingForFirstToken(
+        false,
+      );
+
+      if (
+        requestControllerRef.current ===
+        controller
+      ) {
+        requestControllerRef.current =
+          null;
+      }
     }
   }
 
-  function handleQuickQuestion(
-    question: string,
+  async function sendMessage(
+    rawMessage: string,
   ) {
-    void sendMessage(question);
+    const cleanMessage =
+      rawMessage.trim();
+
+    if (
+      !cleanMessage ||
+      isBusy
+    ) {
+      return;
+    }
+
+    autoScrollRef.current =
+      true;
+
+    setInputValue(
+      "",
+    );
+
+    setShowQuestions(
+      false,
+    );
+
+    setErrorMessage(
+      "",
+    );
+
+    const visitorMessage: TextChatMessage =
+      {
+        id:
+          createMessageId(),
+
+        kind: "text",
+
+        sender: "visitor",
+
+        text:
+          cleanMessage,
+
+        isStreaming:
+          false,
+      };
+
+    setMessages(
+      (current) => [
+        ...current,
+        visitorMessage,
+      ],
+    );
+
+    if (
+      isImageRequest(
+        cleanMessage,
+      )
+    ) {
+      await generateImage(
+        cleanMessage,
+      );
+
+      return;
+    }
+
+    await sendTextMessage(
+      visitorMessage,
+    );
   }
 
-  function createWhatsAppSummary() {
-    const recentConversation =
+  function createWhatsAppUrl() {
+    const summary =
       messages
         .filter(
-          (message) =>
+          (
+            message,
+          ): message is TextChatMessage =>
+            message.kind ===
+              "text" &&
             message.id !==
-            "welcome-message",
+              "welcome-message",
         )
         .slice(-8)
         .map((message) => {
@@ -531,52 +1175,67 @@ export default function WhatsAppChatbot() {
               ? "Visitor"
               : "Assistant";
 
-          return `${speaker}: ${message.text}`;
+          return `${speaker}: ${shortenText(
+            message.text,
+          )}`;
         })
         .join("\n\n");
 
-    return (
-      recentConversation ||
-      inputValue.trim() ||
-      "I would like to discuss a business opportunity."
-    );
-  }
-
-  function createWhatsAppUrl(
-    message: string,
-  ) {
-    const formattedMessage = [
+    const text = [
       "Hello Mubarok Hossain,",
       "",
       "I contacted you through your portfolio AI assistant.",
       "",
-      "Conversation summary.",
-      "",
-      message.trim(),
-      "",
-      "I would like to continue this discussion with you.",
+      summary ||
+        "I would like to discuss a business opportunity.",
     ].join("\n");
 
     return (
       `https://wa.me/${WHATSAPP_NUMBER}` +
       `?text=${encodeURIComponent(
-        formattedMessage,
+        text,
       )}`
     );
   }
 
-  function continueOnWhatsApp() {
+  function openWhatsApp() {
     window.open(
-      createWhatsAppUrl(
-        createWhatsAppSummary(),
-      ),
+      createWhatsAppUrl(),
       "_blank",
       "noopener,noreferrer",
     );
   }
 
+  function handleImageError() {
+    if (
+      profileImage !==
+      FALLBACK_IMAGE
+    ) {
+      setProfileImage(
+        FALLBACK_IMAGE,
+      );
+
+      return;
+    }
+
+    setImageFailed(
+      true,
+    );
+  }
+
   function clearConversation() {
-    requestControllerRef.current?.abort();
+    stopGenerating();
+
+    for (
+      const imageUrl of
+      imageUrlsRef.current
+    ) {
+      URL.revokeObjectURL(
+        imageUrl,
+      );
+    }
+
+    imageUrlsRef.current.clear();
 
     const newSession =
       createSessionId();
@@ -590,47 +1249,33 @@ export default function WhatsAppChatbot() {
       CHAT_STORAGE_KEY,
     );
 
-    setSessionId(newSession);
-    setMessages(INITIAL_MESSAGES);
-    setInputValue("");
-    setIsTyping(false);
-    setErrorMessage("");
-    setShowQuestions(true);
-  }
+    setSessionId(
+      newSession,
+    );
 
-  function handleChatWheel(
-    event: WheelEvent<HTMLDivElement>,
-  ) {
-    const container =
-      scrollAreaRef.current;
+    setMessages(
+      INITIAL_MESSAGES,
+    );
 
-    if (!container) {
-      return;
-    }
+    setInputValue(
+      "",
+    );
 
-    event.stopPropagation();
+    setErrorMessage(
+      "",
+    );
 
-    container.scrollBy({
-      top: event.deltaY,
-      behavior: "auto",
-    });
-  }
+    setThinkingMode(
+      "standard",
+    );
 
-  function handleImageError() {
-    if (
-      profileImage !==
-      FALLBACK_IMAGE
-    ) {
-      setProfileImage(
-        FALLBACK_IMAGE,
-      );
+    setRegeneratingMessageId(
+      null,
+    );
 
-      setImageFailed(false);
-
-      return;
-    }
-
-    setImageFailed(true);
+    setShowQuestions(
+      true,
+    );
   }
 
   return (
@@ -647,238 +1292,105 @@ export default function WhatsAppChatbot() {
 
           <div className="pointer-events-none absolute -right-20 top-20 h-56 w-56 rounded-full bg-violet-500/20 blur-[90px]" />
 
-          <header className="relative min-w-0 overflow-hidden border-b border-white/10 bg-gradient-to-r from-cyan-500/10 via-violet-500/10 to-fuchsia-500/10 px-4 py-4 sm:px-5">
-            <div className="relative grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-2xl border border-cyan-300/25 bg-gradient-to-br from-cyan-400/20 via-blue-500/15 to-violet-500/20">
-                  {!imageFailed ? (
-                    <img
-                      src={profileImage}
-                      alt="Mubarok Hossain"
-                      onError={
-                        handleImageError
-                      }
-                      className="h-full w-full object-cover object-center"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-sm font-extrabold text-cyan-200">
-                      MH.
-                    </div>
-                  )}
+          <ChatHeader
+            profileImage={
+              profileImage
+            }
+            imageFailed={
+              imageFailed
+            }
+            onImageError={
+              handleImageError
+            }
+            onWhatsApp={
+              openWhatsApp
+            }
+            onReset={
+              clearConversation
+            }
+            onClose={() =>
+              setIsOpen(
+                false,
+              )
+            }
+          />
 
-                  <span className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-[#060a16] bg-emerald-400" />
-                </div>
+          <ChatMessages
+            messages={
+              messages
+            }
+            isBusy={
+              isBusy
+            }
+            isWaitingForFirstToken={
+              isWaitingForFirstToken
+            }
+            thinkingMode={
+              thinkingMode
+            }
+            errorMessage={
+              errorMessage
+            }
+            showQuestions={
+              showQuestions
+            }
+            showScrollButton={
+              showScrollButton
+            }
+            regeneratingMessageId={
+              regeneratingMessageId
+            }
+            scrollAreaRef={
+              scrollAreaRef
+            }
+            onScroll={
+              updateScrollButton
+            }
+            onWheel={
+              handleChatWheel
+            }
+            onQuickQuestion={(
+              question,
+            ) => {
+              void sendMessage(
+                question,
+              );
+            }}
+            onRegenerateImage={(
+              prompt,
+              messageId,
+            ) => {
+              void generateImage(
+                prompt,
+                messageId,
+              );
+            }}
+            onScrollToBottom={() =>
+              scrollToBottom()
+            }
+          />
 
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate text-base font-bold sm:text-lg">
-                      Mubarok AI.
-                    </p>
-
-                    <FiStar className="h-4 w-4 shrink-0 text-violet-300" />
-                  </div>
-
-                  <p className="mt-1 truncate text-[9px] uppercase tracking-[0.1em] text-slate-400 sm:text-[10px]">
-                    General assistant and portfolio guide.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex shrink-0 items-center gap-2">
-                <button
-                  type="button"
-                  onClick={
-                    clearConversation
-                  }
-                  aria-label="Start a new conversation"
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-slate-400 transition hover:text-white"
-                >
-                  <FiRefreshCw className="h-4 w-4" />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setIsOpen(false)
-                  }
-                  aria-label="Close chatbot"
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-slate-400 transition hover:text-white"
-                >
-                  <FiX className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-          </header>
-
-          <div className="relative min-h-0 min-w-0">
-            <div
-              ref={scrollAreaRef}
-              onScroll={
-                updateScrollButton
-              }
-              onWheel={
-                handleChatWheel
-              }
-              className="h-full min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            >
-              <div className="space-y-4 px-4 py-5 sm:px-5">
-                {messages.map(
-                  (message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${
-                        message.sender ===
-                        "visitor"
-                          ? "justify-end"
-                          : "justify-start"
-                      }`}
-                    >
-                      <div
-                        className={`relative max-w-[88%] whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-sm leading-6 ${
-                          message.sender ===
-                          "visitor"
-                            ? "rounded-br-md bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 text-white"
-                            : "rounded-bl-md border border-white/10 bg-white/[0.06] text-slate-300"
-                        }`}
-                      >
-                        {message.text}
-                      </div>
-                    </div>
-                  ),
-                )}
-
-                {isTyping && (
-                  <div className="flex justify-start">
-                    <div className="flex items-center gap-2 rounded-2xl rounded-bl-md border border-white/10 bg-white/[0.06] px-4 py-4">
-                      <span className="h-2 w-2 animate-bounce rounded-full bg-cyan-300 [animation-delay:-0.3s]" />
-
-                      <span className="h-2 w-2 animate-bounce rounded-full bg-blue-300 [animation-delay:-0.15s]" />
-
-                      <span className="h-2 w-2 animate-bounce rounded-full bg-violet-300" />
-                    </div>
-                  </div>
-                )}
-
-                {errorMessage && (
-                  <p className="rounded-xl border border-rose-400/20 bg-rose-400/10 px-3 py-2 text-xs text-rose-200">
-                    {errorMessage}
-                  </p>
-                )}
-              </div>
-
-              {showQuestions && (
-                <div className="border-t border-white/10 px-4 py-5 sm:px-5">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-violet-300">
-                    Suggested questions.
-                  </p>
-
-                  <div className="mt-4 grid gap-2.5">
-                    {QUICK_QUESTIONS.map(
-                      (question) => (
-                        <button
-                          key={
-                            question.message
-                          }
-                          type="button"
-                          disabled={isTyping}
-                          onClick={() =>
-                            handleQuickQuestion(
-                              question.message,
-                            )
-                          }
-                          className={`group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-white/10 bg-gradient-to-r ${question.accent} px-4 py-3.5 text-left transition hover:-translate-y-0.5 disabled:opacity-50`}
-                        >
-                          <div className="min-w-0">
-                            <p className="font-semibold text-slate-200">
-                              {
-                                question.title
-                              }
-                            </p>
-
-                            <p className="mt-1 truncate text-xs text-slate-500">
-                              {
-                                question.description
-                              }
-                            </p>
-                          </div>
-
-                          <FiArrowRight
-                            className={`h-4 w-4 ${question.iconColor}`}
-                          />
-                        </button>
-                      ),
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={() =>
-                scrollToBottom()
-              }
-              aria-label="Scroll to latest message"
-              className={`absolute bottom-4 right-4 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-cyan-400 to-violet-500 text-white transition ${
-                showScrollButton
-                  ? "opacity-100"
-                  : "pointer-events-none opacity-0"
-              }`}
-            >
-              <FiArrowDown className="h-5 w-5" />
-            </button>
-          </div>
-
-          <form
-            onSubmit={handleSubmit}
-            className="relative border-t border-white/10 bg-[#060a16] p-4"
-          >
-            <div className="grid grid-cols-[minmax(0,1fr)_52px] items-end gap-3">
-              <textarea
-                rows={1}
-                value={inputValue}
-                maxLength={1500}
-                onChange={(event) =>
-                  setInputValue(
-                    event.target.value,
-                  )
-                }
-                onKeyDown={
-                  handleTextareaKeyDown
-                }
-                placeholder="Ask anything."
-                className="min-h-[52px] max-h-28 w-full resize-none rounded-2xl border border-white/10 bg-black/30 px-4 py-4 text-sm text-white outline-none placeholder:text-slate-600"
-              />
-
-              <button
-                type="submit"
-                disabled={
-                  !inputValue.trim() ||
-                  isTyping
-                }
-                aria-label="Send message"
-                className="flex h-[52px] w-[52px] items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 via-cyan-400 to-blue-500 text-slate-950 disabled:opacity-40"
-              >
-                <FiSend className="h-5 w-5" />
-              </button>
-            </div>
-
-            <button
-              type="button"
-              onClick={
-                continueOnWhatsApp
-              }
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-300/20 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-200"
-            >
-              Continue on WhatsApp.
-
-              <FiCheck className="h-4 w-4" />
-            </button>
-
-            <p className="mt-3 text-center text-[9px] leading-4 text-slate-600">
-              AI responses may be incorrect. Do not submit passwords, payment information, or confidential data.
-            </p>
-          </form>
+          <ChatInput
+            value={
+              inputValue
+            }
+            isBusy={
+              isBusy
+            }
+            onChange={
+              setInputValue
+            }
+            onSend={(
+              value,
+            ) => {
+              void sendMessage(
+                value,
+              );
+            }}
+            onStop={
+              stopGenerating
+            }
+          />
         </section>
       </div>
 
@@ -886,7 +1398,8 @@ export default function WhatsAppChatbot() {
         type="button"
         onClick={() =>
           setIsOpen(
-            (current) => !current,
+            (current) =>
+              !current,
           )
         }
         aria-label={
@@ -894,12 +1407,12 @@ export default function WhatsAppChatbot() {
             ? "Close AI assistant"
             : "Open AI assistant"
         }
-        className="fixed bottom-4 right-4 z-[91] flex h-14 w-14 items-center justify-center rounded-full border border-cyan-200/25 bg-gradient-to-br from-emerald-400 via-cyan-400 to-violet-500 text-slate-950 shadow-[0_20px_60px_rgba(34,211,238,0.3)] sm:bottom-6 sm:right-6 sm:h-16 sm:w-16"
+        className="fixed bottom-4 right-4 z-[91] flex h-14 w-14 items-center justify-center rounded-full border border-cyan-200/25 bg-gradient-to-br from-emerald-400 via-cyan-400 to-violet-500 text-slate-950 shadow-[0_20px_60px_rgba(34,211,238,0.3)] transition duration-300 hover:-translate-y-1 hover:scale-105 sm:bottom-6 sm:right-6 sm:h-16 sm:w-16"
       >
         {isOpen ? (
-          <FiX className="h-6 w-6" />
+          <FiX className="h-6 w-6 sm:h-7 sm:w-7" />
         ) : (
-          <FiMessageCircle className="h-6 w-6" />
+          <FiMessageCircle className="h-6 w-6 sm:h-7 sm:w-7" />
         )}
       </button>
     </>
