@@ -59,27 +59,32 @@ export default function ChatMessages({
   onRegenerateImage,
   onScrollToBottom,
 }: ChatMessagesProps) {
+  const containsOnlyWelcomeMessage =
+    messages.length === 1 &&
+    messages[0]?.kind === "text" &&
+    messages[0]?.id ===
+      "welcome-message";
+
+  const shouldShowQuestions =
+    !isBusy &&
+    (
+      showQuestions ||
+      containsOnlyWelcomeMessage
+    );
+
   return (
     <div className="relative min-h-0 min-w-0">
       <div
-        ref={
-          scrollAreaRef
-        }
-        onScroll={
-          onScroll
-        }
-        onWheel={
-          onWheel
-        }
+        ref={scrollAreaRef}
+        onScroll={onScroll}
+        onWheel={onWheel}
         className="h-full min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         <div className="space-y-4 px-4 py-5">
           {messages.map(
             (message) => (
               <div
-                key={
-                  message.id
-                }
+                key={message.id}
                 className={`flex ${
                   message.sender ===
                   "visitor"
@@ -112,9 +117,7 @@ export default function ChatMessages({
                 ) : message.sender ===
                   "visitor" ? (
                   <div className="max-w-[88%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 px-4 py-3 text-sm leading-6 text-white shadow-[0_12px_30px_rgba(79,70,229,0.2)]">
-                    {
-                      message.text
-                    }
+                    {message.text}
                   </div>
                 ) : (
                   <div className="relative max-w-[92%] overflow-hidden rounded-2xl rounded-bl-md border border-white/10 bg-white/[0.055] px-4 py-3.5 shadow-[0_12px_35px_rgba(0,0,0,0.18)]">
@@ -152,40 +155,33 @@ export default function ChatMessages({
           )}
         </div>
 
-        {showQuestions && (
-          <div className="border-t border-white/10 px-4 py-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-violet-300">
+        {shouldShowQuestions && (
+          <section className="border-t border-white/10 px-4 pb-5 pt-5">
+            <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.15em] text-violet-300">
               Suggested prompts.
             </p>
 
-            <div className="mt-4 grid gap-2.5">
+            <div className="grid gap-2.5">
               {QUICK_QUESTIONS.map(
-                (
-                  question,
-                ) => (
+                (question) => (
                   <button
                     key={
                       question.message
                     }
                     type="button"
-                    disabled={
-                      isBusy
-                    }
                     onClick={() => {
                       onQuickQuestion(
                         question.message,
                       );
                     }}
-                    className={`group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-white/10 bg-gradient-to-r ${question.accent} px-4 py-3.5 text-left transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50`}
+                    className={`group grid min-h-[74px] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-white/10 bg-gradient-to-r ${question.accent} px-4 py-3.5 text-left shadow-[0_10px_30px_rgba(0,0,0,0.12)] transition-colors duration-150 hover:border-white/20 disabled:cursor-not-allowed disabled:opacity-50`}
                   >
                     <div className="min-w-0">
-                      <p className="font-semibold text-slate-200">
-                        {
-                          question.title
-                        }
+                      <p className="text-base font-semibold leading-5 text-slate-200">
+                        {question.title}
                       </p>
 
-                      <p className="mt-1 truncate text-xs text-slate-500">
+                      <p className="mt-1.5 truncate text-xs leading-5 text-slate-500">
                         {
                           question.description
                         }
@@ -193,13 +189,13 @@ export default function ChatMessages({
                     </div>
 
                     <FiArrowRight
-                      className={`h-4 w-4 ${question.iconColor}`}
+                      className={`h-4 w-4 shrink-0 ${question.iconColor}`}
                     />
                   </button>
                 ),
               )}
             </div>
-          </div>
+          </section>
         )}
       </div>
 
@@ -209,7 +205,7 @@ export default function ChatMessages({
           onScrollToBottom
         }
         aria-label="Scroll to latest message"
-        className={`absolute bottom-4 right-4 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-cyan-400 to-violet-500 text-white shadow-[0_12px_30px_rgba(34,211,238,0.2)] transition ${
+        className={`absolute bottom-4 right-4 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-cyan-400 to-violet-500 text-white shadow-[0_12px_30px_rgba(34,211,238,0.2)] transition-opacity duration-150 ${
           showScrollButton
             ? "opacity-100"
             : "pointer-events-none opacity-0"
