@@ -23,18 +23,37 @@ const MAX_IMAGE_COUNT =
 const SIGNED_URL_LIFETIME_SECONDS =
   10 * 60;
 
-type GroqVisionResponse = {
-  output_text?: string | null;
+const VISION_MAX_OUTPUT_TOKENS =
+  4000;
 
-  output?: Array<{
-    content?: Array<{
-      type?: string;
-      text?: string | null;
-    }>;
-  }>;
+const VISION_TIMEOUT_MILLISECONDS =
+  90_000;
+
+type GroqVisionContentItem = {
+  type?: string;
+  text?: string | null;
+};
+
+type GroqVisionOutputItem = {
+  type?: string;
+  role?: string;
+  content?: GroqVisionContentItem[];
+};
+
+type GroqVisionResponse = {
+  id?: string;
+  status?: string | null;
+  output_text?: string | null;
+  output?: GroqVisionOutputItem[];
+
+  incomplete_details?: {
+    reason?: string | null;
+  } | null;
 
   error?: {
     message?: string;
+    type?: string;
+    code?: string;
   };
 };
 
@@ -97,12 +116,155 @@ function extractResponseText(
   );
 }
 
+function createVisionInstruction(
+  prompt: string,
+  imageCount: number,
+) {
+  const visitorRequest =
+    prompt ||
+    (
+      imageCount ===
+      1
+        ? "Analyze this image carefully."
+        : "Analyze these images carefully and compare them when relevant."
+    );
+
+  return `
+You are analyzing ${imageCount} uploaded image${imageCount === 1 ? "" : "s"}.
+
+VISITOR REQUEST.
+
+${visitorRequest}
+
+ANALYSIS REQUIREMENTS.
+
+Inspect every uploaded image before answering.
+
+When multiple images are present, refer to them as Image 1, Image 2, Image 3, and so on.
+
+Answer the visitor's specific question first.
+
+Then describe the important visual evidence that supports your answer.
+
+For interface or website screenshots, evaluate layout, hierarchy, spacing, typography, colors, accessibility, mobile usability, content clarity, calls to action, trust signals, and technical problems when visible.
+
+For documents or screenshots containing text, read the visible text carefully and distinguish text you can read from text that is unclear.
+
+Do not invent hidden details.
+
+Do not identify a real person by name from appearance alone.
+
+Use clear Markdown headings and concise bullet points when useful.
+
+Complete the answer fully.
+
+Do not stop after introducing a section.
+
+Do not end with an unfinished bullet point, unfinished sentence, colon, or heading.
+
+When the requested analysis is broad, provide a concise but complete review instead of producing an excessively long unfinished answer.
+`.trim();
+}
+
+async function removeTemporaryImages(
+  paths: string[],
+) {
+  if (
+    paths.length ===
+    0
+  ) {
+    return;
+  }
+
+  const supabaseUrl =
+    process.env
+      .NEXT_PUBLIC_SUPABASE_URL
+      ?.trim();
+
+  const serviceRoleKey =
+    process.env
+      .SUPABASE_SERVICE_ROLE_KEY
+      ?.trim();
+
+  if (
+    !supabaseUrl ||
+    !serviceRoleKey
+  ) {
+    return;
+  }
+
+  try {
+    const supabase =
+      createClient(
+        supabaseUrl,
+        serviceRoleKey,
+        {
+          auth: {
+            persistSession:
+              false,
+
+            autoRefreshToken:
+              false,
+          },
+        },
+      );
+
+    const {
+      error,
+    } =
+      await supabase
+        .storage
+        .from(
+          BUCKET_NAME,
+        )
+        .remove(
+          paths,
+        );
+
+    if (
+      error
+    ) {
+      console.error(
+        "Temporary image cleanup failed.",
+        error,
+      );
+    }
+  } catch (error) {
+    console.error(
+      "Temporary image cleanup threw an error.",
+      error,
+    );
+  }
+}
+
 export async function POST(
   request: Request,
 ) {
   const pathsToDelete:
     string[] =
     [];
+
+  const controller =
+    new AbortController();
+
+  const timeout =
+    setTimeout(
+      () => {
+        controller.abort();
+      },
+      VISION_TIMEOUT_MILLISECONDS,
+    );
+
+  request.signal.addEventListener(
+    "abort",
+    () => {
+      controller.abort();
+    },
+    {
+      once:
+        true,
+    },
+  );
 
   try {
     const supabaseUrl =
@@ -261,15 +423,6 @@ export async function POST(
       );
     }
 
-    const userPrompt =
-      prompt ||
-      (
-        imageUrls.length ===
-        1
-          ? "Analyze this image carefully. Describe the important details and explain anything notable."
-          : "Analyze these images together. Compare them when relevant, describe the important details, and explain anything notable."
-      );
-
     const response =
       await fetch(
         GROQ_RESPONSES_ENDPOINT,
@@ -301,7 +454,10 @@ export async function POST(
                         "input_text",
 
                       text:
-                        userPrompt,
+                        createVisionInstruction(
+                          prompt,
+                          imageUrls.length,
+                        ),
                     },
 
                     ...imageUrls.map(
@@ -319,12 +475,20 @@ export async function POST(
                 },
               ],
 
+              reasoning: {
+                effort:
+                  "low",
+              },
+
               max_output_tokens:
-                1800,
+                VISION_MAX_OUTPUT_TOKENS,
             }),
 
           cache:
             "no-store",
+
+          signal:
+            controller.signal,
         },
       );
 
@@ -380,17 +544,72 @@ export async function POST(
       );
     }
 
+    const incompleteReason =
+      result
+        .incomplete_details
+        ?.reason
+        ?.trim();
+
+    const wasIncomplete =
+      result.status ===
+        "incomplete" ||
+      Boolean(
+        incompleteReason,
+      );
+
+    if (
+      wasIncomplete
+    ) {
+      console.warn(
+        "Vision response was incomplete.",
+        {
+          status:
+            result.status,
+
+          incompleteReason,
+
+          answerLength:
+            answer.length,
+        },
+      );
+    }
+
+    const finalAnswer =
+      wasIncomplete
+        ? `${answer}\n\n> The vision model reached its response limit before completing every detail. Please ask me to continue the analysis.`
+        : answer;
+
     return NextResponse.json({
       success:
         true,
 
       message:
-        answer,
+        finalAnswer,
 
       model:
         visionModel,
+
+      incomplete:
+        wasIncomplete,
+
+      incompleteReason:
+        incompleteReason ||
+        null,
     });
   } catch (error) {
+    if (
+      error instanceof Error &&
+      error.name ===
+        "AbortError"
+    ) {
+      return createError(
+        request.signal.aborted
+          ? "The image analysis was cancelled."
+          : "The image analysis took too long. Please try fewer images or a more focused question.",
+        504,
+      );
+    }
+
     console.error(
       "Image-analysis route error.",
       error,
@@ -403,60 +622,12 @@ export async function POST(
       500,
     );
   } finally {
-    if (
-      pathsToDelete.length >
-      0
-    ) {
-      const supabaseUrl =
-        process.env
-          .NEXT_PUBLIC_SUPABASE_URL
-          ?.trim();
+    clearTimeout(
+      timeout,
+    );
 
-      const serviceRoleKey =
-        process.env
-          .SUPABASE_SERVICE_ROLE_KEY
-          ?.trim();
-
-      if (
-        supabaseUrl &&
-        serviceRoleKey
-      ) {
-        const supabase =
-          createClient(
-            supabaseUrl,
-            serviceRoleKey,
-            {
-              auth: {
-                persistSession:
-                  false,
-
-                autoRefreshToken:
-                  false,
-              },
-            },
-          );
-
-        const {
-          error,
-        } =
-          await supabase
-            .storage
-            .from(
-              BUCKET_NAME,
-            )
-            .remove(
-              pathsToDelete,
-            );
-
-        if (
-          error
-        ) {
-          console.error(
-            "Temporary image cleanup failed.",
-            error,
-          );
-        }
-      }
-    }
+    await removeTemporaryImages(
+      pathsToDelete,
+    );
   }
 }

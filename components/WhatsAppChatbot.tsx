@@ -956,7 +956,7 @@ export default function WhatsAppChatbot() {
     attachments: PendingImageAttachment[],
   ) {
     setThinkingMode(
-      "image",
+      "vision",
     );
 
     setIsBusy(

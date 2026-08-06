@@ -35,7 +35,8 @@ export type StoredChatMessage =
 export type ThinkingMode =
   | "standard"
   | "live"
-  | "image";
+  | "image"
+  | "vision";
 
 export type ChatbotSettings = {
   navbar_image_url?: string | null;
