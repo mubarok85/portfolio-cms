@@ -229,7 +229,7 @@ export default function ChatInput({
       </div>
 
       <p className="mt-3 text-center text-[9px] leading-4 text-slate-600 sm:text-[10px]">
-        Up to five images, 15 MB each. Images are optimized before analysis.
+        Up to three images, 15 MB each. Images are optimized before analysis.
       </p>
     </form>
   );

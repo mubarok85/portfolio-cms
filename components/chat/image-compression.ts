@@ -3,7 +3,7 @@ import type {
 } from "./types";
 
 export const MAX_IMAGE_COUNT =
-  5;
+  3;
 
 export const MAX_ORIGINAL_IMAGE_BYTES =
   15 * 1024 * 1024;

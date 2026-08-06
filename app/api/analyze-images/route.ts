@@ -18,7 +18,7 @@ const GROQ_RESPONSES_ENDPOINT =
   "https://api.groq.com/openai/v1/responses";
 
 const MAX_IMAGE_COUNT =
-  5;
+  3;
 
 const SIGNED_URL_LIFETIME_SECONDS =
   10 * 60;
@@ -140,29 +140,29 @@ ANALYSIS REQUIREMENTS.
 
 Inspect every uploaded image before answering.
 
-When multiple images are present, refer to them as Image 1, Image 2, Image 3, and so on.
+When multiple images are present, refer to them as Image 1, Image 2, and Image 3.
 
 Answer the visitor's specific question first.
 
-Then describe the important visual evidence that supports your answer.
+Then describe the important visual evidence supporting the answer.
 
-For interface or website screenshots, evaluate layout, hierarchy, spacing, typography, colors, accessibility, mobile usability, content clarity, calls to action, trust signals, and technical problems when visible.
+For interface or website screenshots, evaluate layout, visual hierarchy, spacing, typography, colors, accessibility, mobile usability, content clarity, calls to action, trust signals, and visible technical problems.
 
-For documents or screenshots containing text, read the visible text carefully and distinguish text you can read from text that is unclear.
+For documents or screenshots containing text, read the visible text carefully.
+
+Clearly distinguish readable text from unclear or partially visible text.
 
 Do not invent hidden details.
 
 Do not identify a real person by name from appearance alone.
 
-Use clear Markdown headings and concise bullet points when useful.
+Use clear Markdown headings, short paragraphs, and concise bullet points when useful.
 
-Complete the answer fully.
+Complete every section fully.
 
-Do not stop after introducing a section.
+Do not finish with an incomplete sentence, heading, colon, or bullet point.
 
-Do not end with an unfinished bullet point, unfinished sentence, colon, or heading.
-
-When the requested analysis is broad, provide a concise but complete review instead of producing an excessively long unfinished answer.
+For broad requests, provide a complete but focused analysis rather than an excessively long unfinished response.
 `.trim();
 }
 
@@ -344,7 +344,7 @@ export async function POST(
       )
     ) {
       return createError(
-        "Provide between one and five valid uploaded image paths.",
+        "Provide between one and three valid uploaded image paths.",
         400,
       );
     }
@@ -475,11 +475,6 @@ export async function POST(
                 },
               ],
 
-              reasoning: {
-                effort:
-                  "low",
-              },
-
               max_output_tokens:
                 VISION_MAX_OUTPUT_TOKENS,
             }),
@@ -520,6 +515,12 @@ export async function POST(
             response.status,
 
           providerMessage,
+
+          model:
+            visionModel,
+
+          imageCount:
+            imageUrls.length,
         },
       );
 
@@ -576,7 +577,7 @@ export async function POST(
 
     const finalAnswer =
       wasIncomplete
-        ? `${answer}\n\n> The vision model reached its response limit before completing every detail. Please ask me to continue the analysis.`
+        ? `${answer}\n\n> The image analysis reached its response limit. Ask me to continue from the last completed section.`
         : answer;
 
     return NextResponse.json({
@@ -605,7 +606,7 @@ export async function POST(
       return createError(
         request.signal.aborted
           ? "The image analysis was cancelled."
-          : "The image analysis took too long. Please try fewer images or a more focused question.",
+          : "The image analysis took too long. Please try fewer images or ask a more focused question.",
         504,
       );
     }
