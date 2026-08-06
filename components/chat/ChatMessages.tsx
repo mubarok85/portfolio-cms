@@ -8,6 +8,7 @@ import {
   FiArrowDown,
   FiArrowRight,
 } from "react-icons/fi";
+import CitationSources from "./CitationSources";
 import GeneratedImageCard from "./GeneratedImageCard";
 import MarkdownRenderer from "./MarkdownRenderer";
 import ThinkingIndicator from "./ThinkingIndicator";
@@ -61,7 +62,8 @@ export default function ChatMessages({
 }: ChatMessagesProps) {
   const containsOnlyWelcomeMessage =
     messages.length === 1 &&
-    messages[0]?.kind === "text" &&
+    messages[0]?.kind ===
+      "text" &&
     messages[0]?.id ===
       "welcome-message";
 
@@ -133,6 +135,14 @@ export default function ChatMessages({
                         className="ml-1 inline-block h-4 w-[2px] animate-pulse rounded-full bg-cyan-300 align-middle"
                       />
                     )}
+
+                    {!message.isStreaming && (
+                      <CitationSources
+                        content={
+                          message.text
+                        }
+                      />
+                    )}
                   </div>
                 )}
               </div>
@@ -178,7 +188,9 @@ export default function ChatMessages({
                   >
                     <div className="min-w-0">
                       <p className="text-base font-semibold leading-5 text-slate-200">
-                        {question.title}
+                        {
+                          question.title
+                        }
                       </p>
 
                       <p className="mt-1.5 truncate text-xs leading-5 text-slate-500">

@@ -7,6 +7,9 @@ import {
   useState,
 } from "react";
 import {
+  createClient,
+} from "@supabase/supabase-js";
+import {
   FiMessageCircle,
   FiX,
 } from "react-icons/fi";
@@ -14,9 +17,16 @@ import ChatHeader from "./chat/ChatHeader";
 import ChatInput from "./chat/ChatInput";
 import ChatMessages from "./chat/ChatMessages";
 import {
+  MAX_IMAGE_COUNT,
+  prepareImageAttachment,
+} from "./chat/image-compression";
+import {
+  cleanImageGenerationPrompt,
+  shouldGenerateImage,
+} from "./chat/intent";
+import {
   CHAT_STORAGE_KEY,
   FALLBACK_IMAGE,
-  IMAGE_REQUEST_PATTERNS,
   INITIAL_MESSAGES,
   LIVE_INFORMATION_PATTERNS,
   MAX_API_CONTEXT_MESSAGES,
@@ -30,6 +40,8 @@ import type {
   ChatbotSettings,
   ChatMessage,
   ImageChatMessage,
+  PendingImageAttachment,
+  SignedUploadItem,
   StoredChatMessage,
   TextChatMessage,
   ThinkingMode,
@@ -92,7 +104,8 @@ function normalizeStoredMessages(
       id:
         item.id as string,
 
-      kind: "text",
+      kind:
+        "text",
 
       sender:
         item.sender as
@@ -107,15 +120,6 @@ function normalizeStoredMessages(
     }));
 }
 
-function isImageRequest(
-  message: string,
-) {
-  return IMAGE_REQUEST_PATTERNS.some(
-    (pattern) =>
-      pattern.test(message),
-  );
-}
-
 function requiresLiveInformation(
   message: string,
 ) {
@@ -123,21 +127,6 @@ function requiresLiveInformation(
     (pattern) =>
       pattern.test(message),
   );
-}
-
-function cleanImagePrompt(
-  message: string,
-) {
-  return message
-    .replace(
-      /^\s*\/image\s+/i,
-      "",
-    )
-    .replace(
-      /^(please\s+)?(generate|create|make|draw|design|paint|illustrate|render)\s+(me\s+)?(an?\s+)?(image|picture|photo|artwork|illustration)\s+(of\s+)?/i,
-      "",
-    )
-    .trim();
 }
 
 function shortenText(
@@ -198,7 +187,8 @@ function createApiContext(
     ...history,
 
     {
-      role: "user",
+      role:
+        "user",
 
       content:
         visitorMessage.text,
@@ -226,7 +216,8 @@ function parseSseBlock(
       );
 
   if (
-    dataLines.length === 0
+    dataLines.length ===
+    0
   ) {
     return null;
   }
@@ -312,6 +303,13 @@ export default function WhatsAppChatbot() {
     null,
   );
 
+  const [
+    pendingImages,
+    setPendingImages,
+  ] = useState<PendingImageAttachment[]>(
+    [],
+  );
+
   const scrollAreaRef =
     useRef<HTMLDivElement>(null);
 
@@ -395,7 +393,18 @@ export default function WhatsAppChatbot() {
             !message.isStreaming,
         )
         .map((message) => ({
-          ...message,
+          id:
+            message.id,
+
+          kind:
+            "text" as const,
+
+          sender:
+            message.sender,
+
+          text:
+            message.text,
+
           isStreaming:
             false,
         }));
@@ -475,6 +484,7 @@ export default function WhatsAppChatbot() {
   }, [
     messages,
     isWaitingForFirstToken,
+    pendingImages,
   ]);
 
   useEffect(() => {
@@ -564,6 +574,7 @@ export default function WhatsAppChatbot() {
               messageId
               ? {
                   ...message,
+
                   isStreaming:
                     false,
                 }
@@ -587,6 +598,7 @@ export default function WhatsAppChatbot() {
             message.isStreaming
               ? {
                   ...message,
+
                   isStreaming:
                     false,
                 }
@@ -603,12 +615,516 @@ export default function WhatsAppChatbot() {
     );
   }
 
+  function removePendingImagesWithoutRevoking() {
+    setPendingImages(
+      [],
+    );
+  }
+
+  function clearPendingImages() {
+    setPendingImages(
+      (current) => {
+        for (
+          const attachment of
+          current
+        ) {
+          URL.revokeObjectURL(
+            attachment.previewUrl,
+          );
+
+          imageUrlsRef.current.delete(
+            attachment.previewUrl,
+          );
+        }
+
+        return [];
+      },
+    );
+  }
+
+  async function handleSelectImages(
+    files: File[],
+  ) {
+    const availableSlots =
+      MAX_IMAGE_COUNT -
+      pendingImages.length;
+
+    if (
+      availableSlots <=
+      0
+    ) {
+      setErrorMessage(
+        "You can attach up to five images.",
+      );
+
+      return;
+    }
+
+    const selectedFiles =
+      files.slice(
+        0,
+        availableSlots,
+      );
+
+    if (
+      files.length >
+      availableSlots
+    ) {
+      setErrorMessage(
+        `Only ${availableSlots} more image${availableSlots === 1 ? "" : "s"} can be attached.`,
+      );
+    } else {
+      setErrorMessage(
+        "",
+      );
+    }
+
+    for (
+      const file of
+      selectedFiles
+    ) {
+      try {
+        const attachment =
+          await prepareImageAttachment(
+            file,
+          );
+
+        imageUrlsRef.current.add(
+          attachment.previewUrl,
+        );
+
+        setPendingImages(
+          (current) => [
+            ...current,
+            attachment,
+          ],
+        );
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "An image could not be prepared.",
+        );
+      }
+    }
+  }
+
+  function handleRemoveImage(
+    id: string,
+  ) {
+    setPendingImages(
+      (current) => {
+        const removed =
+          current.find(
+            (attachment) =>
+              attachment.id ===
+              id,
+          );
+
+        if (
+          removed
+        ) {
+          URL.revokeObjectURL(
+            removed.previewUrl,
+          );
+
+          imageUrlsRef.current.delete(
+            removed.previewUrl,
+          );
+        }
+
+        return current.filter(
+          (attachment) =>
+            attachment.id !==
+            id,
+        );
+      },
+    );
+  }
+
+  async function uploadPendingImages(
+    attachments: PendingImageAttachment[],
+    controller: AbortController,
+  ) {
+    const metadataResponse =
+      await fetch(
+        "/api/chat-images/upload-url",
+        {
+          method:
+            "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+
+          body:
+            JSON.stringify({
+              sessionId,
+
+              files:
+                attachments.map(
+                  (
+                    attachment,
+                  ) => ({
+                    id:
+                      attachment.id,
+
+                    name:
+                      attachment.file.name,
+
+                    type:
+                      attachment.file.type,
+
+                    size:
+                      attachment.file.size,
+                  }),
+                ),
+            }),
+
+          signal:
+            controller.signal,
+        },
+      );
+
+    let metadataResult: {
+      success?: boolean;
+      message?: string;
+      uploads?: SignedUploadItem[];
+    };
+
+    try {
+      metadataResult =
+        await metadataResponse.json();
+    } catch {
+      throw new Error(
+        "The upload server returned an unreadable response.",
+      );
+    }
+
+    if (
+      !metadataResponse.ok ||
+      !metadataResult.success ||
+      !Array.isArray(
+        metadataResult.uploads,
+      )
+    ) {
+      throw new Error(
+        typeof metadataResult.message ===
+          "string"
+          ? metadataResult.message
+          : "Could not prepare the image uploads.",
+      );
+    }
+
+    const uploads =
+      metadataResult.uploads;
+
+    const supabaseUrl =
+      process.env
+        .NEXT_PUBLIC_SUPABASE_URL;
+
+    const anonKey =
+      process.env
+        .NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (
+      !supabaseUrl ||
+      !anonKey
+    ) {
+      throw new Error(
+        "The browser upload configuration is missing.",
+      );
+    }
+
+    const supabase =
+      createClient(
+        supabaseUrl,
+        anonKey,
+        {
+          auth: {
+            persistSession:
+              false,
+
+            autoRefreshToken:
+              false,
+          },
+        },
+      );
+
+    await Promise.all(
+      uploads.map(
+        async (
+          upload,
+        ) => {
+          const attachment =
+            attachments.find(
+              (item) =>
+                item.id ===
+                upload.id,
+            );
+
+          if (
+            !attachment
+          ) {
+            throw new Error(
+              "An uploaded image could not be matched.",
+            );
+          }
+
+          setPendingImages(
+            (current) =>
+              current.map(
+                (item) =>
+                  item.id ===
+                    attachment.id
+                    ? {
+                        ...item,
+
+                        status:
+                          "uploading",
+
+                        progress:
+                          35,
+                      }
+                    : item,
+              ),
+          );
+
+          const {
+            error,
+          } =
+            await supabase
+              .storage
+              .from(
+                "chatbot-uploads",
+              )
+              .uploadToSignedUrl(
+                upload.path,
+                upload.token,
+                attachment.file,
+                {
+                  contentType:
+                    attachment.file.type,
+
+                  upsert:
+                    false,
+                },
+              );
+
+          if (
+            error
+          ) {
+            throw new Error(
+              error.message,
+            );
+          }
+
+          setPendingImages(
+            (current) =>
+              current.map(
+                (item) =>
+                  item.id ===
+                    attachment.id
+                    ? {
+                        ...item,
+
+                        status:
+                          "uploaded",
+
+                        progress:
+                          100,
+
+                        storagePath:
+                          upload.path,
+                      }
+                    : item,
+              ),
+          );
+        },
+      ),
+    );
+
+    return uploads.map(
+      (upload) =>
+        upload.path,
+    );
+  }
+
+  async function analyzeImages(
+    visitorMessage: TextChatMessage,
+    attachments: PendingImageAttachment[],
+  ) {
+    setThinkingMode(
+      "image",
+    );
+
+    setIsBusy(
+      true,
+    );
+
+    setIsWaitingForFirstToken(
+      true,
+    );
+
+    setErrorMessage(
+      "",
+    );
+
+    const controller =
+      new AbortController();
+
+    requestControllerRef.current =
+      controller;
+
+    try {
+      const paths =
+        await uploadPendingImages(
+          attachments,
+          controller,
+        );
+
+      const response =
+        await fetch(
+          "/api/analyze-images",
+          {
+            method:
+              "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                prompt:
+                  visitorMessage.text,
+
+                paths,
+              }),
+
+            signal:
+              controller.signal,
+          },
+        );
+
+      let result: {
+        success?: boolean;
+        message?: string;
+      };
+
+      try {
+        result =
+          await response.json();
+      } catch {
+        throw new Error(
+          "The image-analysis server returned an unreadable response.",
+        );
+      }
+
+      if (
+        !response.ok ||
+        !result.success ||
+        typeof result.message !==
+          "string"
+      ) {
+        throw new Error(
+          typeof result.message ===
+            "string"
+            ? result.message
+            : "The images could not be analyzed.",
+        );
+      }
+
+      const analysisAnswer =
+        result.message;
+
+      setMessages(
+        (current): ChatMessage[] => [
+          ...current,
+
+          {
+            id:
+              createMessageId(),
+
+            kind:
+              "text",
+
+            sender:
+              "assistant",
+
+            text:
+              analysisAnswer,
+
+            isStreaming:
+              false,
+          },
+        ],
+      );
+
+      removePendingImagesWithoutRevoking();
+    } catch (error) {
+      if (
+        error instanceof
+          DOMException &&
+        error.name ===
+          "AbortError"
+      ) {
+        return;
+      }
+
+      setPendingImages(
+        (current) =>
+          current.map(
+            (attachment) => ({
+              ...attachment,
+
+              status:
+                attachment.status ===
+                  "uploaded"
+                  ? "uploaded"
+                  : "error",
+
+              error:
+                attachment.status ===
+                  "uploaded"
+                  ? null
+                  : "Upload failed.",
+            }),
+          ),
+      );
+
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "The images could not be analyzed.",
+      );
+    } finally {
+      setIsBusy(
+        false,
+      );
+
+      setIsWaitingForFirstToken(
+        false,
+      );
+
+      if (
+        requestControllerRef.current ===
+        controller
+      ) {
+        requestControllerRef.current =
+          null;
+      }
+    }
+  }
+
   async function generateImage(
     prompt: string,
     replaceMessageId?: string,
   ) {
     const cleanPrompt =
-      cleanImagePrompt(
+      cleanImageGenerationPrompt(
         prompt,
       ) ||
       prompt.trim();
@@ -648,17 +1164,19 @@ export default function WhatsAppChatbot() {
         await fetch(
           "/api/generate-image",
           {
-            method: "POST",
+            method:
+              "POST",
 
             headers: {
               "Content-Type":
                 "application/json",
             },
 
-            body: JSON.stringify({
-              prompt:
-                cleanPrompt,
-            }),
+            body:
+              JSON.stringify({
+                prompt:
+                  cleanPrompt,
+              }),
 
             signal:
               controller.signal,
@@ -681,7 +1199,7 @@ export default function WhatsAppChatbot() {
               result.message;
           }
         } catch {
-          // Keep fallback.
+          // Keep the fallback message.
         }
 
         throw new Error(
@@ -707,9 +1225,11 @@ export default function WhatsAppChatbot() {
             replaceMessageId ||
             createMessageId(),
 
-          kind: "image",
+          kind:
+            "image",
 
-          sender: "assistant",
+          sender:
+            "assistant",
 
           prompt:
             cleanPrompt,
@@ -835,22 +1355,24 @@ export default function WhatsAppChatbot() {
         await fetch(
           "/api/assistant",
           {
-            method: "POST",
+            method:
+              "POST",
 
             headers: {
               "Content-Type":
                 "application/json",
             },
 
-            body: JSON.stringify({
-              sessionId,
+            body:
+              JSON.stringify({
+                sessionId,
 
-              messages:
-                createApiContext(
-                  messages,
-                  visitorMessage,
-                ),
-            }),
+                messages:
+                  createApiContext(
+                    messages,
+                    visitorMessage,
+                  ),
+              }),
 
             signal:
               controller.signal,
@@ -873,7 +1395,7 @@ export default function WhatsAppChatbot() {
               result.message;
           }
         } catch {
-          // Keep fallback.
+          // Keep the fallback message.
         }
 
         throw new Error(
@@ -912,7 +1434,8 @@ export default function WhatsAppChatbot() {
           decoder.decode(
             value,
             {
-              stream: true,
+              stream:
+                true,
             },
           );
 
@@ -926,7 +1449,8 @@ export default function WhatsAppChatbot() {
           "";
 
         for (
-          const block of blocks
+          const block of
+          blocks
         ) {
           const event =
             parseSseBlock(
@@ -1094,7 +1618,11 @@ export default function WhatsAppChatbot() {
       rawMessage.trim();
 
     if (
-      !cleanMessage ||
+      (
+        !cleanMessage &&
+        pendingImages.length ===
+          0
+      ) ||
       isBusy
     ) {
       return;
@@ -1115,20 +1643,48 @@ export default function WhatsAppChatbot() {
       "",
     );
 
+    const visitorText =
+      cleanMessage ||
+      (
+        pendingImages.length ===
+        1
+          ? "Analyze this image."
+          : "Analyze these images."
+      );
+
+    const attachmentSnapshot =
+      pendingImages.map(
+        (attachment) => ({
+          id:
+            attachment.id,
+
+          name:
+            attachment.originalName,
+
+          previewUrl:
+            attachment.previewUrl,
+        }),
+      );
+
     const visitorMessage: TextChatMessage =
       {
         id:
           createMessageId(),
 
-        kind: "text",
+        kind:
+          "text",
 
-        sender: "visitor",
+        sender:
+          "visitor",
 
         text:
-          cleanMessage,
+          visitorText,
 
         isStreaming:
           false,
+
+        attachments:
+          attachmentSnapshot,
       };
 
     setMessages(
@@ -1139,7 +1695,22 @@ export default function WhatsAppChatbot() {
     );
 
     if (
-      isImageRequest(
+      pendingImages.length >
+      0
+    ) {
+      const attachmentsForRequest =
+        [...pendingImages];
+
+      await analyzeImages(
+        visitorMessage,
+        attachmentsForRequest,
+      );
+
+      return;
+    }
+
+    if (
+      shouldGenerateImage(
         cleanMessage,
       )
     ) {
@@ -1167,19 +1738,25 @@ export default function WhatsAppChatbot() {
             message.id !==
               "welcome-message",
         )
-        .slice(-8)
-        .map((message) => {
-          const speaker =
-            message.sender ===
-            "visitor"
-              ? "Visitor"
-              : "Assistant";
+        .slice(
+          -8,
+        )
+        .map(
+          (message) => {
+            const speaker =
+              message.sender ===
+              "visitor"
+                ? "Visitor"
+                : "Assistant";
 
-          return `${speaker}: ${shortenText(
-            message.text,
-          )}`;
-        })
-        .join("\n\n");
+            return `${speaker}: ${shortenText(
+              message.text,
+            )}`;
+          },
+        )
+        .join(
+          "\n\n",
+        );
 
     const text = [
       "Hello Mubarok Hossain,",
@@ -1188,7 +1765,9 @@ export default function WhatsAppChatbot() {
       "",
       summary ||
         "I would like to discuss a business opportunity.",
-    ].join("\n");
+    ].join(
+      "\n",
+    );
 
     return (
       `https://wa.me/${WHATSAPP_NUMBER}` +
@@ -1225,6 +1804,8 @@ export default function WhatsAppChatbot() {
 
   function clearConversation() {
     stopGenerating();
+
+    clearPendingImages();
 
     for (
       const imageUrl of
@@ -1377,6 +1958,9 @@ export default function WhatsAppChatbot() {
             isBusy={
               isBusy
             }
+            attachments={
+              pendingImages
+            }
             onChange={
               setInputValue
             }
@@ -1389,6 +1973,16 @@ export default function WhatsAppChatbot() {
             }}
             onStop={
               stopGenerating
+            }
+            onSelectImages={(
+              files,
+            ) => {
+              void handleSelectImages(
+                files,
+              );
+            }}
+            onRemoveImage={
+              handleRemoveImage
             }
           />
         </section>

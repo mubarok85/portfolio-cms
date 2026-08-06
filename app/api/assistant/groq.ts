@@ -118,7 +118,8 @@ function createCompactLiveInput(
 
   if (systemMessage) {
     compactInput.push({
-      role: "system",
+      role:
+        "system",
 
       content:
         shortenText(
@@ -130,7 +131,8 @@ function createCompactLiveInput(
 
   if (latestUserMessage) {
     compactInput.push({
-      role: "user",
+      role:
+        "user",
 
       content:
         shortenText(
@@ -192,37 +194,43 @@ export async function requestStandardStream({
   messages,
   signal,
 }: GroqCompletionOptions) {
-  const response = await fetch(
-    GROQ_CHAT_ENDPOINT,
-    {
-      method: "POST",
+  const response =
+    await fetch(
+      GROQ_CHAT_ENDPOINT,
+      {
+        method:
+          "POST",
 
-      headers: {
-        Authorization:
-          `Bearer ${apiKey}`,
+        headers: {
+          Authorization:
+            `Bearer ${apiKey}`,
 
-        "Content-Type":
-          "application/json",
+          "Content-Type":
+            "application/json",
+        },
+
+        body:
+          JSON.stringify({
+            model,
+
+            messages,
+
+            temperature:
+              0.65,
+
+            max_completion_tokens:
+              STANDARD_MAX_OUTPUT_TOKENS,
+
+            stream:
+              true,
+          }),
+
+        cache:
+          "no-store",
+
+        signal,
       },
-
-      body: JSON.stringify({
-        model,
-
-        messages,
-
-        temperature: 0.65,
-
-        max_completion_tokens:
-          STANDARD_MAX_OUTPUT_TOKENS,
-
-        stream: true,
-      }),
-
-      cache: "no-store",
-
-      signal,
-    },
-  );
+    );
 
   return requireSuccessfulResponse(
     response,
@@ -231,6 +239,7 @@ export async function requestStandardStream({
 
 export async function requestLiveStream({
   apiKey,
+  model,
   messages,
   signal,
 }: GroqCompletionOptions) {
@@ -239,47 +248,51 @@ export async function requestLiveStream({
       messages,
     );
 
-  const response = await fetch(
-    GROQ_RESPONSES_ENDPOINT,
-    {
-      method: "POST",
+  const response =
+    await fetch(
+      GROQ_RESPONSES_ENDPOINT,
+      {
+        method:
+          "POST",
 
-      headers: {
-        Authorization:
-          `Bearer ${apiKey}`,
+        headers: {
+          Authorization:
+            `Bearer ${apiKey}`,
 
-        "Content-Type":
-          "application/json",
+          "Content-Type":
+            "application/json",
+        },
+
+        body:
+          JSON.stringify({
+            model,
+
+            input:
+              compactInput,
+
+            tools: [
+              {
+                type:
+                  "browser_search",
+              },
+            ],
+
+            tool_choice:
+              "required",
+
+            max_output_tokens:
+              LIVE_MAX_OUTPUT_TOKENS,
+
+            stream:
+              true,
+          }),
+
+        cache:
+          "no-store",
+
+        signal,
       },
-
-      body: JSON.stringify({
-        model:
-          "openai/gpt-oss-20b",
-
-        input:
-          compactInput,
-
-        tools: [
-          {
-            type:
-              "browser_search",
-          },
-        ],
-
-        tool_choice:
-          "required",
-
-        max_output_tokens:
-          LIVE_MAX_OUTPUT_TOKENS,
-
-        stream: true,
-      }),
-
-      cache: "no-store",
-
-      signal,
-    },
-  );
+    );
 
   return requireSuccessfulResponse(
     response,
@@ -290,11 +303,13 @@ function parseChatCompletionEvent(
   rawData: string,
 ): NormalizedStreamEvent[] {
   if (
-    rawData === "[DONE]"
+    rawData ===
+    "[DONE]"
   ) {
     return [
       {
-        type: "done",
+        type:
+          "done",
       },
     ];
   }
@@ -306,12 +321,18 @@ function parseChatCompletionEvent(
       ) as ChatCompletionStreamChunk;
 
     const providerError =
-      chunk.error?.message?.trim();
+      chunk.error
+        ?.message
+        ?.trim();
 
-    if (providerError) {
+    if (
+      providerError
+    ) {
       return [
         {
-          type: "error",
+          type:
+            "error",
+
           message:
             providerError,
         },
@@ -329,7 +350,9 @@ function parseChatCompletionEvent(
 
     if (text) {
       events.push({
-        type: "delta",
+        type:
+          "delta",
+
         text,
       });
     }
@@ -339,7 +362,8 @@ function parseChatCompletionEvent(
         ?.finish_reason
     ) {
       events.push({
-        type: "done",
+        type:
+          "done",
       });
     }
 
@@ -354,11 +378,13 @@ function parseResponsesEvent(
   rawData: string,
 ): NormalizedStreamEvent[] {
   if (
-    rawData === "[DONE]"
+    rawData ===
+    "[DONE]"
   ) {
     return [
       {
-        type: "done",
+        type:
+          "done",
       },
     ];
   }
@@ -382,21 +408,13 @@ function parseResponsesEvent(
     ) {
       return [
         {
-          type: "delta",
+          type:
+            "delta",
+
           text:
             event.delta,
         },
       ];
-    }
-
-    if (
-      eventType ===
-        "response.output_text.done" &&
-      typeof event.text ===
-        "string" &&
-      event.text
-    ) {
-      return [];
     }
 
     if (
@@ -407,7 +425,8 @@ function parseResponsesEvent(
     ) {
       return [
         {
-          type: "done",
+          type:
+            "done",
         },
       ];
     }
@@ -420,7 +439,8 @@ function parseResponsesEvent(
     ) {
       return [
         {
-          type: "error",
+          type:
+            "error",
 
           message:
             event.error
@@ -453,7 +473,8 @@ export async function pipeGroqStream({
   ) => void;
 }) {
   const reader =
-    response.body?.getReader();
+    response.body
+      ?.getReader();
 
   if (!reader) {
     throw new Error(
@@ -482,7 +503,8 @@ export async function pipeGroqStream({
       decoder.decode(
         value,
         {
-          stream: true,
+          stream:
+            true,
         },
       );
 
@@ -524,13 +546,10 @@ export async function pipeGroqStream({
             "data:",
           )
         ) {
-          const dataPart =
+          data +=
             line
               .slice(5)
               .trimStart();
-
-          data +=
-            dataPart;
         }
       }
 
@@ -539,7 +558,8 @@ export async function pipeGroqStream({
       }
 
       const normalizedEvents =
-        kind === "chat"
+        kind ===
+        "chat"
           ? parseChatCompletionEvent(
               data,
             )

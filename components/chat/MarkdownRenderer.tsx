@@ -5,12 +5,19 @@ import type {
 } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import {
+  FiZap,
+} from "react-icons/fi";
+import {
+  isCitationUrl,
+  prepareCitationMarkdown,
+} from "./citations";
 
 type MarkdownRendererProps = {
   content: string;
 };
 
-function getSafeLinkLabel(
+function renderBlockedLink(
   children: ReactNode,
 ) {
   return (
@@ -23,6 +30,11 @@ function getSafeLinkLabel(
 export default function MarkdownRenderer({
   content,
 }: MarkdownRendererProps) {
+  const preparedContent =
+    prepareCitationMarkdown(
+      content,
+    );
+
   return (
     <div className="min-w-0 max-w-full text-sm leading-7 text-slate-300">
       <ReactMarkdown
@@ -120,11 +132,32 @@ export default function MarkdownRenderer({
           ),
 
           a: ({
+            href,
             children,
-          }) =>
-            getSafeLinkLabel(
+          }) => {
+            if (
+              isCitationUrl(
+                href,
+              )
+            ) {
+              return (
+                <span
+                  title="Search citation reference"
+                  className="mx-0.5 inline-flex translate-y-[1px] items-center gap-1 rounded-full border border-orange-300/20 bg-orange-400/10 px-2 py-0.5 text-[10px] font-semibold leading-4 text-orange-200 shadow-[0_5px_18px_rgba(251,146,60,0.08)]"
+                >
+                  <FiZap className="h-2.5 w-2.5 fill-current" />
+
+                  <span>
+                    {children}
+                  </span>
+                </span>
+              );
+            }
+
+            return renderBlockedLink(
               children,
-            ),
+            );
+          },
 
           code: ({
             className,
@@ -227,7 +260,7 @@ export default function MarkdownRenderer({
           ),
         }}
       >
-        {content}
+        {preparedContent}
       </ReactMarkdown>
     </div>
   );

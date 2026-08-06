@@ -2,12 +2,19 @@ export type MessageSender =
   | "assistant"
   | "visitor";
 
+export type MessageImageAttachment = {
+  id: string;
+  name: string;
+  previewUrl: string;
+};
+
 export type TextChatMessage = {
   id: string;
   kind: "text";
   sender: MessageSender;
   text: string;
   isStreaming?: boolean;
+  attachments?: MessageImageAttachment[];
 };
 
 export type ImageChatMessage = {
@@ -51,6 +58,33 @@ export type QuickQuestion = {
   message: string;
   accent: string;
   iconColor: string;
+};
+
+export type PendingImageStatus =
+  | "ready"
+  | "uploading"
+  | "uploaded"
+  | "error";
+
+export type PendingImageAttachment = {
+  id: string;
+  originalName: string;
+  originalSize: number;
+  optimizedSize: number;
+  width: number;
+  height: number;
+  file: File;
+  previewUrl: string;
+  status: PendingImageStatus;
+  progress: number;
+  storagePath: string | null;
+  error: string | null;
+};
+
+export type SignedUploadItem = {
+  id: string;
+  path: string;
+  token: string;
 };
 
 export type AssistantStreamEvent =
